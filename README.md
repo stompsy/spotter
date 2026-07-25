@@ -67,6 +67,17 @@ Use SQLite only when explicitly needed by setting:
 
 - `USE_SQLITE=1`
 
+## Static Asset Policy
+
+Tailwind source input is intentionally ignored from git:
+
+- `assets/css/input.css` is local/developer source and not committed.
+- `src/static/css/output.css` is the build artifact used for deployments.
+
+Rebuild CSS when frontend classes change:
+
+- `npm run tailwind:build`
+
 ## Local PostgreSQL Dev Flow
 
 Start database (Docker):
@@ -123,3 +134,14 @@ The command is idempotent:
 
 - If a superuser already exists, it does nothing.
 - If no superuser exists, it creates or promotes the configured username.
+
+## Reminder Delivery Command
+
+Dispatch due workout reminders into `NotificationEvent` rows:
+
+- `python manage.py send_reminders`
+
+Options:
+
+- `--days-ahead N`: include assignments starting up to N days ahead
+- `--dry-run`: preview candidates without writing notifications
