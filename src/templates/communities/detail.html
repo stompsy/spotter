@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Spotter | {{ community.name }}{% endblock %}
+
+{% block content %}
+  <section class="grid gap-6 lg:grid-cols-[2fr_1fr]">
+    <article class="rounded-3xl border border-white/10 bg-gradient-to-br from-brand-panel to-brand-panel-soft p-7">
+      <p>
+        {% if community.visibility == "private" %}
+          <span class="rounded-full border border-brand-sunset/60 bg-brand-sunset/20 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-sunset">Private community</span>
+        {% else %}
+          <span class="rounded-full border border-brand-neon/50 bg-brand-neon/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-neon">Public community</span>
+        {% endif %}
+      </p>
+      <h2 class="mt-4 font-display text-4xl font-bold uppercase tracking-wide text-white">{{ community.name }}</h2>
+      <p class="mt-4 max-w-2xl text-base leading-7 text-zinc-300">{{ community.description|default:"No description yet." }}</p>
+    </article>
+
+    <aside class="space-y-4">
+      <div id="membership-card" class="rounded-2xl border border-brand-neon/30 bg-brand-neon/10 p-6">
+        {% include "communities/partials/membership_card.html" %}
+      </div>
+      {% include "communities/partials/moderation_queue.html" %}
+      <div id="invitation-panel">
+        {% include "communities/partials/invitation_panel.html" %}
+      </div>
+    </aside>
+  </section>
+{% endblock %}

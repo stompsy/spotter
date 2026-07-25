@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Spotter | {{ guidance.title }}{% endblock %}
+
+{% block content %}
+  <section class="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+    <article class="rounded-2xl border border-white/10 bg-gradient-to-br from-brand-panel to-brand-panel-soft p-6">
+      <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Guidance details</p>
+      <h2 class="mt-2 font-display text-4xl font-bold uppercase tracking-wide text-white">{{ guidance.title }}</h2>
+      <p class="mt-2 text-xs uppercase tracking-[0.15em] text-zinc-400">{{ guidance.get_topic_display }}{% if guidance.community %} • {{ guidance.community.name }}{% endif %}</p>
+      <p class="mt-2 text-xs uppercase tracking-[0.15em] text-zinc-500">Status: {{ guidance.status }}{% if guidance.published_at %} • Published{% endif %}</p>
+      <div class="prose prose-invert mt-5 max-w-none text-zinc-200">
+        {{ guidance.body|linebreaks }}
+      </div>
+
+      {% if can_edit %}
+        <details class="mt-6 rounded-xl border border-white/10 bg-black/20 p-3">
+          <summary class="cursor-pointer text-sm font-semibold text-zinc-100">Edit draft</summary>
+          <form class="mt-3 space-y-2" method="post" action="{% url 'guidance:edit' guidance_id=guidance.id %}">
+            {% csrf_token %}
+            {{ guidance_form.as_p }}
+            <button class="inline-flex rounded-full bg-brand-neon px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand-ink" type="submit">Save changes</button>
+          </form>
+        </details>
+      {% endif %}
+
+      {% if moderation_history %}
+        <section class="mt-6">
+          <h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-neon">Moderation history</h3>
+          <ul class="mt-3 space-y-2">
+            {% for record in moderation_history %}
+              <li class="rounded-xl border border-white/10 bg-black/20 p-3">
+                <p class="text-xs uppercase tracking-wide text-zinc-300">{{ record.decision }} by {{ record.decided_by.username }}</p>
+                <p class="mt-1 text-sm text-zinc-400">{{ record.reason|default:"No reason provided." }}</p>
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% endif %}
+    </article>
+
+    <aside class="space-y-4">
+      {% if can_submit %}
+        <section class="rounded-2xl border border-brand-neon/30 bg-brand-neon/10 p-6">
+          <h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-neon">Submit For Review</h3>
+          <form class="mt-3" method="post" action="{% url 'guidance:submit' guidance_id=guidance.id %}">
+            {% csrf_token %}
+            <button class="inline-flex rounded-full bg-brand-neon px-4 py-2 text-sm font-bold uppercase tracking-wide text-brand-ink" type="submit">Submit</button>
+          </form>
+        </section>
+      {% endif %}
+
+      {% if can_moderate and guidance.status == 'pending' %}
+        <section class="rounded-2xl border border-brand-sunset/40 bg-brand-sunset/10 p-6">
+          <h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-sunset">Moderation Decision</h3>
+          <form class="mt-3 space-y-2" method="post" action="{% url 'guidance:moderate' guidance_id=guidance.id %}">
+            {% csrf_token %}
+            <textarea class="w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" name="reason" rows="3" placeholder="Optional reason"></textarea>
+            <div class="flex flex-wrap gap-2">
+              <button class="rounded-full border border-emerald-300/60 bg-emerald-300/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-200" type="submit" name="decision" value="approved">Approve</button>
+              <button class="rounded-full border border-amber-300/60 bg-amber-300/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-200" type="submit" name="decision" value="needs_changes">Needs changes</button>
+              <button class="rounded-full border border-rose-300/60 bg-rose-300/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-rose-200" type="submit" name="decision" value="rejected">Reject</button>
+            </div>
+          </form>
+        </section>
+      {% endif %}
+
+      {% if can_publish and not guidance.published_at %}
+        <section class="rounded-2xl border border-emerald-300/40 bg-emerald-300/10 p-6">
+          <h3 class="font-display text-xl font-bold uppercase tracking-wide text-emerald-200">Publish</h3>
+          <form class="mt-3" method="post" action="{% url 'guidance:publish' guidance_id=guidance.id %}">
+            {% csrf_token %}
+            <button class="inline-flex rounded-full border border-emerald-300/60 bg-emerald-300/20 px-4 py-2 text-sm font-bold uppercase tracking-wide text-emerald-100" type="submit">Publish guidance</button>
+          </form>
+        </section>
+      {% endif %}
+    </aside>
+  </section>
+{% endblock %}

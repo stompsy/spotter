@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Spotter | Communities{% endblock %}
+
+{% block content %}
+  <section>
+    <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p class="font-display text-xs uppercase tracking-[0.3em] text-brand-neon">Communities</p>
+        <h2 class="mt-2 font-display text-4xl font-bold uppercase tracking-wide text-white">Find your training crew</h2>
+        <p class="mt-2 max-w-2xl text-sm text-zinc-300">Choose a public lane or request access to private coaching groups.</p>
+      </div>
+      {% if not request.user.is_authenticated %}
+        <a class="rounded-full bg-brand-neon px-4 py-2 text-sm font-bold uppercase tracking-wide text-brand-ink transition hover:-translate-y-0.5 hover:bg-brand-neon-soft" href="{% url 'account_signup' %}">
+          Sign up to join
+        </a>
+      {% endif %}
+    </div>
+
+    {% if communities %}
+      <ul class="grid gap-4 md:grid-cols-2">
+        {% for community in communities %}
+          <li class="group rounded-2xl border border-white/10 bg-gradient-to-br from-brand-panel to-brand-panel-soft p-5 transition hover:-translate-y-0.5 hover:border-brand-neon/40 hover:shadow-lg hover:shadow-brand-neon/10">
+            <p>
+              {% if community.visibility == "private" %}
+                <span class="rounded-full border border-brand-sunset/60 bg-brand-sunset/20 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-sunset">Private</span>
+              {% else %}
+                <span class="rounded-full border border-brand-neon/50 bg-brand-neon/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-neon">Public</span>
+              {% endif %}
+            </p>
+            <h3 class="mt-3 font-display text-2xl font-bold uppercase tracking-wide">
+              <a class="text-white group-hover:text-brand-neon" href="{% url 'communities:detail' slug=community.slug %}">{{ community.name }}</a>
+            </h3>
+            <p class="mt-3 text-sm leading-6 text-zinc-300">{{ community.description|default:"No description yet." }}</p>
+            <p class="mt-4 text-xs uppercase tracking-[0.2em] text-zinc-400">Open Group Page</p>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="rounded-2xl border border-dashed border-white/20 bg-white/5 p-8 text-zinc-300">
+        No communities are available yet.
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Spotter | Notifications{% endblock %}
+
+{% block content %}
+  <section>
+    <header class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p class="font-display text-xs uppercase tracking-[0.3em] text-brand-neon">Notifications</p>
+        <h2 class="mt-2 font-display text-4xl font-bold uppercase tracking-wide text-white">Inbox</h2>
+        <p class="mt-2 text-sm text-zinc-300">Updates from join requests, moderation decisions, and plan activity.</p>
+      </div>
+      {% if unread_notifications_count > 0 %}
+        <form method="post" action="{% url 'notifications:mark_all_read' %}">
+          {% csrf_token %}
+          <button class="rounded-full border border-brand-neon/40 bg-brand-neon/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-brand-neon transition hover:-translate-y-0.5 hover:bg-brand-neon/20" type="submit">
+            Mark all as read ({{ unread_notifications_count }})
+          </button>
+        </form>
+      {% endif %}
+    </header>
+
+    {% if notifications %}
+      <ul class="space-y-3">
+        {% for event in notifications %}
+          <li class="rounded-2xl border p-5 {% if event.is_read %}border-white/10 bg-gradient-to-br from-brand-panel to-brand-panel-soft{% else %}border-brand-neon/40 bg-gradient-to-br from-brand-panel-soft to-brand-panel shadow-pulse{% endif %}">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="font-display text-lg font-bold uppercase tracking-wide text-white">{{ event.subject }}</p>
+              <div class="flex items-center gap-2">
+                {% if not event.is_read %}
+                  <span class="rounded-full border border-brand-neon/50 bg-brand-neon/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-neon">Unread</span>
+                {% endif %}
+                <span class="rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide {% if event.delivery_status == 'sent' %}border border-emerald-300/60 bg-emerald-300/10 text-emerald-200{% elif event.delivery_status == 'failed' %}border border-rose-300/60 bg-rose-300/10 text-rose-200{% else %}border border-amber-300/60 bg-amber-300/10 text-amber-200{% endif %}">
+                  {{ event.get_delivery_status_display }}
+                </span>
+              </div>
+            </div>
+            <p class="mt-2 text-sm uppercase tracking-[0.15em] text-zinc-400">{{ event.get_notification_type_display }} • {{ event.created_at|date:"M j, Y g:i A" }}</p>
+            {% if event.body %}
+              <p class="mt-3 text-sm leading-6 text-zinc-200">{{ event.body }}</p>
+            {% endif %}
+            {% if not event.is_read %}
+              <form class="mt-4" method="post" action="{% url 'notifications:mark_read' event_id=event.id %}">
+                {% csrf_token %}
+                <button class="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-100 hover:text-brand-neon" type="submit">
+                  Mark as read
+                </button>
+              </form>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+
+      {% if is_paginated %}
+        <nav class="mt-6 flex items-center justify-between text-sm text-zinc-300">
+          {% if page_obj.has_previous %}
+            <a class="rounded-full border border-white/20 bg-white/5 px-4 py-2 hover:text-brand-neon" href="?page={{ page_obj.previous_page_number }}">Newer</a>
+          {% else %}
+            <span></span>
+          {% endif %}
+          <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+          {% if page_obj.has_next %}
+            <a class="rounded-full border border-white/20 bg-white/5 px-4 py-2 hover:text-brand-neon" href="?page={{ page_obj.next_page_number }}">Older</a>
+          {% else %}
+            <span></span>
+          {% endif %}
+        </nav>
+      {% endif %}
+    {% else %}
+      <div class="rounded-2xl border border-dashed border-white/20 bg-white/5 p-8 text-zinc-300">
+        No notifications yet. Submit a join request or moderate one to generate events.
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

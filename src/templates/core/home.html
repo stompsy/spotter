@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Spotter | Home{% endblock %}
+
+{% block content %}
+  <section class="grid gap-6 lg:grid-cols-[1.7fr_1fr]">
+    <div class="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-brand-panel to-brand-panel-soft p-8 shadow-2xl shadow-brand-neon/10 sm:p-10">
+      <div class="absolute -right-10 -top-10 h-44 w-44 rounded-full border border-brand-neon/30"></div>
+      <div class="absolute bottom-4 right-5 h-20 w-20 rounded-full bg-brand-sunset/25 blur-2xl"></div>
+      <p class="font-display text-sm uppercase tracking-[0.25em] text-brand-neon">MVP Playground</p>
+      <h2 class="mt-4 max-w-3xl font-display text-4xl font-bold uppercase leading-tight text-white sm:text-5xl">
+        Build your crew, run your plan, log your wins.
+      </h2>
+      <p class="mt-5 max-w-2xl text-base leading-7 text-zinc-200">
+        Spotter now has a seeded social training loop: communities, join requests, moderator decisions,
+        workouts, guidance, and progress records.
+      </p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a class="inline-flex rounded-full bg-brand-neon px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-brand-ink transition hover:-translate-y-0.5 hover:bg-brand-neon-soft" href="/communities/">
+          Explore communities
+        </a>
+        <a class="inline-flex rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-zinc-100 transition hover:-translate-y-0.5 hover:border-brand-neon/50" href="/communities/trail-runners-lab/">
+          Open seeded private group
+        </a>
+      </div>
+    </div>
+
+    <aside class="rounded-3xl border border-white/10 bg-white/5 p-7">
+      <h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-neon">Current Demo Flow</h3>
+      <ul class="mt-5 space-y-4 text-sm text-zinc-200">
+        <li class="rounded-xl border border-white/10 bg-black/20 p-3">Join requests and moderation queue with HTMX updates.</li>
+        <li class="rounded-xl border border-white/10 bg-black/20 p-3">Private/public visibility and role-based reviewer controls.</li>
+        <li class="rounded-xl border border-white/10 bg-black/20 p-3">Seeded workout plan, guidance submissions, and progress logs.</li>
+      </ul>
+    </aside>
+  </section>
+{% endblock %}

@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-spotter}
+      POSTGRES_USER: ${DATABASE_USER:-spotter}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-spotter}
+    ports:
+      - "${DATABASE_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    env_file:
+      - .env
+    environment:
+      DATABASE_ENGINE: ${DATABASE_ENGINE:-django.db.backends.postgresql}
+      DATABASE_NAME: ${DATABASE_NAME:-spotter}
+      DATABASE_USER: ${DATABASE_USER:-spotter}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-spotter}
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  dbgate:
+    image: dbgate/dbgate:latest
+    ports:
+      - "3000:3000"
+    environment:
+      CONNECTIONS: spotter
+      LABEL_spotter: Spotter Local
+      SERVER_spotter: db
+      PORT_spotter: 5432
+      USER_spotter: ${DATABASE_USER:-spotter}
+      PASSWORD_spotter: ${DATABASE_PASSWORD:-spotter}
+      DATABASE_spotter: ${DATABASE_NAME:-spotter}
+      ENGINE_spotter: postgres@dbgate-plugin-postgres
+    volumes:
+      - dbgate_data:/root/.dbgate
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+  dbgate_data:

@@ -1,0 +1,12 @@
+Django<6.0,>=5.1
+django-allauth<1.0,>=0.63
+django-browser-reload<2.0,>=1.17
+django-htmx<2.0,>=1.19
+python-dotenv<2.0,>=1.0
+psycopg[binary]<4.0,>=3.2
+
+[dev]
+pytest>=8.0
+pytest-django>=4.8
+ruff>=0.6
+python-semantic-release<11.0,>=9.9

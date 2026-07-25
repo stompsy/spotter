@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spotter"
+version = "0.1.0"
+description = "Django community workout platform MVP"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "Django>=5.1,<6.0",
+  "django-allauth>=0.63,<1.0",
+  "django-browser-reload>=1.17,<2.0",
+  "django-htmx>=1.19,<2.0",
+  "python-dotenv>=1.0,<2.0",
+  "psycopg[binary]>=3.2,<4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-django>=4.8",
+  "ruff>=0.6",
+  "python-semantic-release>=9.9,<11.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/apps/*/migrations/*.py" = ["E501"]
+
+[tool.semantic_release]
+branch = "main"
+version_toml = ["pyproject.toml:project.version"]
+tag_format = "v{version}"
+changelog_file = "CHANGELOG.md"
+commit_parser = "conventional"
+upload_to_vcs_release = true
+build_command = "echo 'No build artifacts configured'"
+commit_message = "chore(release): {version} [skip ci]"
+
+[tool.semantic_release.changelog]
+exclude_commit_patterns = [
+  "^chore\\(release\\):",
+]

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Spotter | Exercises{% endblock %}
+
+{% block content %}
+  <section class="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+    <article>
+      <header class="mb-6">
+        <p class="font-display text-xs uppercase tracking-[0.3em] text-brand-neon">Workouts</p>
+        <h2 class="mt-2 font-display text-4xl font-bold uppercase tracking-wide text-white">Exercise Library</h2>
+        <p class="mt-2 text-sm text-zinc-300">Maintain the shared catalog used by plan templates and assignments.</p>
+      </header>
+
+      {% if exercises %}
+        <ul class="space-y-3">
+          {% for exercise in exercises %}
+            <li class="rounded-2xl border border-white/10 bg-gradient-to-br from-brand-panel to-brand-panel-soft p-5">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 class="font-display text-2xl font-bold uppercase tracking-wide text-white">{{ exercise.name }}</h3>
+                  <p class="mt-1 text-xs uppercase tracking-[0.2em] text-zinc-400">{{ exercise.get_category_display }}</p>
+                </div>
+                <form method="post" action="{% url 'workouts:exercise_toggle_active' exercise_id=exercise.id %}">
+                  {% csrf_token %}
+                  <button class="rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide {% if exercise.is_active %}border-rose-300/60 bg-rose-300/10 text-rose-200{% else %}border-emerald-300/60 bg-emerald-300/10 text-emerald-200{% endif %}" type="submit">
+                    {% if exercise.is_active %}Archive{% else %}Activate{% endif %}
+                  </button>
+                </form>
+              </div>
+
+              <p class="mt-3 text-sm text-zinc-300">{{ exercise.description|default:"No description." }}</p>
+
+              <details class="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+                <summary class="cursor-pointer text-sm font-semibold text-zinc-100">Edit exercise</summary>
+                <form class="mt-3 space-y-2" method="post" action="{% url 'workouts:exercise_edit' exercise_id=exercise.id %}">
+                  {% csrf_token %}
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="name_{{ exercise.id }}">Name</label>
+                    <input class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="name_{{ exercise.id }}" name="name" value="{{ exercise.name }}" required>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="category_{{ exercise.id }}">Category</label>
+                    <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="category_{{ exercise.id }}" name="category">
+                      {% for value, label in exercise._meta.get_field('category').choices %}
+                        <option value="{{ value }}" {% if value == exercise.category %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="description_{{ exercise.id }}">Description</label>
+                    <textarea class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="description_{{ exercise.id }}" name="description" rows="2">{{ exercise.description }}</textarea>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="instructions_{{ exercise.id }}">Instructions</label>
+                    <textarea class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="instructions_{{ exercise.id }}" name="instructions" rows="3">{{ exercise.instructions }}</textarea>
+                  </div>
+                  <label class="inline-flex items-center gap-2 text-sm text-zinc-200">
+                    <input type="checkbox" name="is_active" {% if exercise.is_active %}checked{% endif %}>
+                    Active
+                  </label>
+                  <button class="inline-flex rounded-full bg-brand-neon px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand-ink" type="submit">Save</button>
+                </form>
+              </details>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="rounded-2xl border border-dashed border-white/20 bg-white/5 p-8 text-zinc-300">No exercises yet.</div>
+      {% endif %}
+    </article>
+
+    <aside class="rounded-2xl border border-brand-neon/30 bg-brand-neon/10 p-6">
+      <h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-neon">Create Exercise</h3>
+      <form class="mt-4 space-y-3" method="post">
+        {% csrf_token %}
+        {{ exercise_form.as_p }}
+        <button class="inline-flex rounded-full bg-brand-neon px-4 py-2 text-sm font-bold uppercase tracking-wide text-brand-ink" type="submit">Create</button>
+      </form>
+    </aside>
+  </section>
+{% endblock %}

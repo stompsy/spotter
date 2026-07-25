@@ -1,0 +1,35 @@
+<h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-neon">Membership</h3>
+
+{% if not request.user.is_authenticated %}
+  <p class="mt-3 text-sm text-zinc-100/90">Login or create an account to request access to this community.</p>
+  <p class="mt-4">
+    <a class="inline-flex rounded-full border border-brand-neon/50 px-4 py-2 text-sm font-bold uppercase tracking-wide text-brand-neon transition hover:-translate-y-0.5 hover:bg-brand-neon/15" href="{% url 'account_login' %}">Login</a>
+  </p>
+{% elif membership and membership.status == "active" %}
+  <p class="mt-3 text-sm text-zinc-100/90">You are an active member.</p>
+  <p class="mt-3 inline-flex rounded-full border border-emerald-300/50 bg-emerald-300/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-200">
+    Active
+  </p>
+{% elif pending_join_request %}
+  <p class="mt-3 text-sm text-zinc-100/90">Your join request is pending moderator review.</p>
+  <p class="mt-3 inline-flex rounded-full border border-amber-300/50 bg-amber-300/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-200">
+    Pending review
+  </p>
+{% else %}
+  <p class="mt-3 text-sm text-zinc-100/90">Request access to join workouts and discussions in this group.</p>
+  <form
+    class="mt-4 space-y-3"
+    method="post"
+    action="{% url 'communities:join' slug=community.slug %}"
+    hx-post="{% url 'communities:join' slug=community.slug %}"
+    hx-target="#membership-card"
+    hx-swap="innerHTML"
+  >
+    {% csrf_token %}
+    <label class="block text-xs uppercase tracking-[0.2em] text-zinc-300" for="join-message">Message (optional)</label>
+    <textarea id="join-message" name="message" rows="3" class="w-full rounded-xl border border-white/20 bg-black/20 p-3 text-sm text-zinc-100 placeholder:text-zinc-500" placeholder="Share your goals and training focus."></textarea>
+    <button class="inline-flex rounded-full bg-brand-neon px-4 py-2 text-sm font-bold uppercase tracking-wide text-brand-ink transition hover:-translate-y-0.5 hover:bg-brand-neon-soft" type="submit">
+      Request to join
+    </button>
+  </form>
+{% endif %}

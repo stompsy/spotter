@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Spotter | Workouts{% endblock %}
+
+{% block content %}
+  <section class="grid gap-6 lg:grid-cols-[1.25fr_1fr]">
+    <div>
+      <header class="mb-6">
+        <p class="font-display text-xs uppercase tracking-[0.3em] text-brand-neon">Workouts</p>
+        <h2 class="mt-2 font-display text-4xl font-bold uppercase tracking-wide text-white">Plans And Assignments</h2>
+        <p class="mt-2 text-sm text-zinc-300">Create reusable plans and open any card to add exercises or assign delivery.</p>
+        <a class="mt-4 inline-flex rounded-full border border-brand-neon/60 bg-brand-neon/15 px-4 py-2 text-xs font-bold uppercase tracking-wide text-brand-neon" href="{% url 'workouts:exercises' %}">Manage exercise library</a>
+      </header>
+
+      {% if plans %}
+        <ul class="space-y-3">
+          {% for plan in plans %}
+            <li class="rounded-2xl border border-white/10 bg-gradient-to-br from-brand-panel to-brand-panel-soft p-5">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 class="font-display text-2xl font-bold uppercase tracking-wide text-white">
+                  <a class="hover:text-brand-neon" href="{% url 'workouts:detail' slug=plan.slug %}">{{ plan.name }}</a>
+                </h3>
+                <div class="flex items-center gap-2">
+                  {% if plan.is_template %}
+                    <span class="rounded-full border border-brand-neon/40 bg-brand-neon/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-brand-neon">Template</span>
+                  {% endif %}
+                  {% if plan.is_published %}
+                    <span class="rounded-full border border-emerald-300/50 bg-emerald-300/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-200">Published</span>
+                  {% endif %}
+                </div>
+              </div>
+              <p class="mt-3 text-sm text-zinc-300">{{ plan.description|default:"No description yet." }}</p>
+              <p class="mt-3 text-xs uppercase tracking-[0.15em] text-zinc-400">
+                {% if plan.community %}
+                  Community: {{ plan.community.name }}
+                {% else %}
+                  Personal plan
+                {% endif %}
+              </p>
+              <div class="mt-3">
+                <a class="text-xs font-bold uppercase tracking-wide text-brand-neon" href="{% url 'workouts:detail' slug=plan.slug %}">Open plan</a>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="rounded-2xl border border-dashed border-white/20 bg-white/5 p-8 text-zinc-300">No plans yet. Create your first one.</div>
+      {% endif %}
+    </div>
+
+    <aside class="rounded-2xl border border-brand-neon/30 bg-brand-neon/10 p-6">
+      <h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-neon">Create Plan</h3>
+      <form class="mt-4 space-y-3" method="post">
+        {% csrf_token %}
+        {% if plan_form.non_field_errors %}
+          <div class="rounded-xl border border-rose-300/40 bg-rose-300/10 px-3 py-2 text-sm text-rose-100">{{ plan_form.non_field_errors }}</div>
+        {% endif %}
+        <div>
+          <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="id_name">Name</label>
+          {{ plan_form.name }}
+          {% if plan_form.name.errors %}<p class="mt-1 text-xs text-rose-200">{{ plan_form.name.errors|join:', ' }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="id_description">Description</label>
+          {{ plan_form.description }}
+        </div>
+        <div>
+          <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="id_community">Community</label>
+          {{ plan_form.community }}
+        </div>
+        <div class="flex items-center gap-4 text-sm text-zinc-200">
+          <label>{{ plan_form.is_template }} Template</label>
+          <label>{{ plan_form.is_published }} Published</label>
+        </div>
+        <button class="inline-flex rounded-full bg-brand-neon px-4 py-2 text-sm font-bold uppercase tracking-wide text-brand-ink transition hover:-translate-y-0.5 hover:bg-brand-neon-soft" type="submit">Create</button>
+      </form>
+    </aside>
+  </section>
+{% endblock %}

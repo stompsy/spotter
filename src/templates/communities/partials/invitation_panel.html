@@ -1,0 +1,46 @@
+{% if can_invite %}
+  <section class="rounded-2xl border border-brand-neon/30 bg-black/20 p-6">
+    <h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-neon">Invite Members</h3>
+    <p class="mt-2 text-sm text-zinc-300">Create a link for private community access.</p>
+
+    <form
+      class="mt-4 grid gap-3"
+      method="post"
+      action="{% url 'communities:create_invitation' slug=community.slug %}"
+      hx-post="{% url 'communities:create_invitation' slug=community.slug %}"
+      hx-target="#invitation-panel"
+      hx-swap="innerHTML"
+    >
+      {% csrf_token %}
+      <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="invited_email">Invite email (optional)</label>
+      <input id="invited_email" name="invited_email" type="email" placeholder="athlete@example.com" class="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500">
+
+      <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="expires_days">Expires in (days)</label>
+      <input id="expires_days" name="expires_days" type="number" min="1" max="30" value="7" class="w-28 rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm text-zinc-100">
+
+      <button class="inline-flex w-fit rounded-full bg-brand-neon px-4 py-2 text-xs font-bold uppercase tracking-wide text-brand-ink transition hover:-translate-y-0.5 hover:bg-brand-neon-soft" type="submit">
+        Create invite
+      </button>
+    </form>
+
+    {% if active_invitations %}
+      <ul class="mt-5 space-y-3">
+        {% for invitation in active_invitations %}
+          <li class="rounded-xl border border-white/10 bg-brand-panel p-3">
+            <p class="text-xs uppercase tracking-[0.15em] text-zinc-400">
+              {% if invitation.invited_email %}
+                {{ invitation.invited_email }}
+              {% else %}
+                Open invite
+              {% endif %}
+            </p>
+            <p class="mt-2 text-xs text-zinc-300">Expires {{ invitation.expires_at|date:"M j, Y g:i A" }}</p>
+            <p class="mt-2 break-all rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-zinc-100">
+              /communities/invitations/{{ invitation.invite_code }}/accept/
+            </p>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+{% endif %}

@@ -1,0 +1,12 @@
+{
+  "name": "spotter",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "tailwind:build": "tailwindcss -i ./assets/css/input.css -o ./src/static/css/output.css --minify",
+    "tailwind:watch": "tailwindcss -i ./assets/css/input.css -o ./src/static/css/output.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.10"
+  }
+}
