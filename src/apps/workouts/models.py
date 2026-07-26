@@ -50,6 +50,13 @@ class ExerciseEquipmentRequirement(models.TextChoices):
     SPECIALIZED = "specialized", "Specialized"
 
 
+class ExerciseMediaType(models.TextChoices):
+    IMAGE = "image", "Image"
+    VIDEO = "video", "Video"
+    DIAGRAM = "diagram", "Diagram"
+    OTHER = "other", "Other"
+
+
 class ExerciseSourceType(models.TextChoices):
     DOCUMENT = "document", "Document"
     WEB = "web", "Web reference"
@@ -123,6 +130,43 @@ class Exercise(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class ExerciseMedia(models.Model):
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.CASCADE,
+        related_name="media_items",
+    )
+    media_type = models.CharField(
+        max_length=16,
+        choices=ExerciseMediaType.choices,
+        default=ExerciseMediaType.IMAGE,
+    )
+    file = models.FileField(upload_to="exercise_media/", blank=True)
+    external_url = models.URLField(blank=True)
+    license_name = models.CharField(max_length=200)
+    attribution_text = models.CharField(max_length=300, blank=True)
+    rights_notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"{self.exercise.name} media ({self.media_type})"
+
+    def clean(self):
+        has_file = bool(self.file)
+        has_external_url = bool(self.external_url.strip())
+        if has_file == has_external_url:
+            raise ValidationError(
+                "Provide exactly one media source: either a file upload or an external URL."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
 
 class ExerciseSource(models.Model):

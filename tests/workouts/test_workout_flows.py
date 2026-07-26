@@ -1,6 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
 from apps.communities.models import Community, CommunityMembership, MembershipRole, MembershipStatus
@@ -12,6 +13,7 @@ from apps.workouts.models import (
     ExerciseCategory,
     ExerciseDifficultyLevel,
     ExerciseEquipmentRequirement,
+    ExerciseMedia,
     ExerciseMovementType,
     ExerciseSource,
     ExerciseSourceType,
@@ -258,6 +260,77 @@ def test_user_can_update_exercise_taxonomy_fields(client):
     assert exercise.prescription_strength == "5x5"
     assert exercise.prescription_hypertrophy == "4x12"
     assert exercise.prescription_endurance == "3x25"
+
+
+@pytest.mark.django_db
+def test_user_can_add_external_media_to_exercise(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="exercise_media_editor",
+        email="exercise_media_editor@example.com",
+        password="pw",
+    )
+    exercise = Exercise.objects.create(
+        name="Plank",
+        slug="plank",
+        category=ExerciseCategory.CALISTHENICS,
+        is_active=True,
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:exercise_media_add", kwargs={"exercise_id": exercise.id}),
+        {
+            "media_type": "image",
+            "external_url": "https://example.com/plank-image.jpg",
+            "license_name": "CC BY 4.0",
+            "attribution_text": "Photo by Example",
+            "rights_notes": "Verified on source page",
+        },
+    )
+
+    assert response.status_code == 302
+    media_item = ExerciseMedia.objects.get(exercise=exercise)
+    assert media_item.external_url == "https://example.com/plank-image.jpg"
+    assert media_item.license_name == "CC BY 4.0"
+
+
+@pytest.mark.django_db
+def test_user_can_add_uploaded_media_to_exercise(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="exercise_media_uploader",
+        email="exercise_media_uploader@example.com",
+        password="pw",
+    )
+    exercise = Exercise.objects.create(
+        name="Dead Bug",
+        slug="dead-bug",
+        category=ExerciseCategory.CALISTHENICS,
+        is_active=True,
+    )
+    uploaded_file = SimpleUploadedFile(
+        "dead-bug.txt",
+        b"demo media",
+        content_type="text/plain",
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:exercise_media_add", kwargs={"exercise_id": exercise.id}),
+        {
+            "media_type": "diagram",
+            "file": uploaded_file,
+            "license_name": "Internal use",
+            "attribution_text": "Created by Spotter",
+            "rights_notes": "Internal asset",
+        },
+    )
+
+    assert response.status_code == 302
+    media_item = ExerciseMedia.objects.get(exercise=exercise)
+    assert media_item.file.name
+    assert media_item.license_name == "Internal use"
 
 
 @pytest.mark.django_db

@@ -14,7 +14,13 @@ from django.views.generic import DetailView, ListView
 
 from apps.communities.models import CommunityMembership, MembershipRole, MembershipStatus
 
-from .forms import ExerciseForm, WorkoutPlanAssignmentForm, WorkoutPlanForm, WorkoutPlanItemForm
+from .forms import (
+    ExerciseForm,
+    ExerciseMediaForm,
+    WorkoutPlanAssignmentForm,
+    WorkoutPlanForm,
+    WorkoutPlanItemForm,
+)
 from .models import (
     CurationStatus,
     Exercise,
@@ -24,6 +30,7 @@ from .models import (
     ExerciseCategory,
     ExerciseDifficultyLevel,
     ExerciseEquipmentRequirement,
+    ExerciseMediaType,
     ExerciseMovementType,
     WorkoutPlan,
     WorkoutPlanAssignment,
@@ -36,7 +43,7 @@ class ExerciseListView(LoginRequiredMixin, ListView):
     context_object_name = "exercises"
 
     def get_queryset(self):
-        return Exercise.objects.order_by("name")
+        return Exercise.objects.prefetch_related("media_items").order_by("name")
 
     def _get_filtered_candidates(self):
         status = self.request.GET.get("candidate_status", "all").strip().lower()
@@ -103,6 +110,7 @@ class ExerciseListView(LoginRequiredMixin, ListView):
             "decided_by",
         )[:12]
         context["exercise_form"] = kwargs.get("exercise_form") or ExerciseForm()
+        context["exercise_media_form"] = kwargs.get("exercise_media_form") or ExerciseMediaForm()
         context["exercise_category_choices"] = ExerciseCategory.choices
         context["exercise_movement_type_choices"] = ExerciseMovementType.choices
         context["exercise_body_area_choices"] = ExerciseBodyArea.choices
@@ -110,6 +118,7 @@ class ExerciseListView(LoginRequiredMixin, ListView):
         context["exercise_equipment_requirement_choices"] = (
             ExerciseEquipmentRequirement.choices
         )
+        context["exercise_media_type_choices"] = ExerciseMediaType.choices
         context["can_review_candidates"] = _can_review_candidates(self.request.user)
         context["candidates"] = candidates
         context["recent_candidate_decisions"] = recent_decisions
@@ -169,6 +178,20 @@ class ExerciseToggleActiveView(LoginRequiredMixin, View):
             request,
             "Exercise activated." if exercise.is_active else "Exercise archived.",
         )
+        return redirect("workouts:exercises")
+
+
+class ExerciseMediaCreateView(LoginRequiredMixin, View):
+    def post(self, request: HttpRequest, exercise_id: int) -> HttpResponse:
+        exercise = get_object_or_404(Exercise, id=exercise_id)
+        form = ExerciseMediaForm(request.POST, request.FILES)
+        if form.is_valid():
+            media_item = form.save(commit=False)
+            media_item.exercise = exercise
+            media_item.save()
+            messages.success(request, "Exercise media added.")
+        else:
+            messages.error(request, "Exercise media could not be added.")
         return redirect("workouts:exercises")
 
 
