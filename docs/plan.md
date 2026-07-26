@@ -31,6 +31,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 1 merged: source registry, exercise candidates, ingestion command, admin integration, tests.
 - Slice 2 merged: extraction run/page parser-routing scaffolding, command logging, admin visibility, and coverage tests.
 - Slice 3 merged: candidate review action endpoint and curation status transition guardrails with tests.
+- Slice 4 merged: reviewer decision metadata and publish prerequisites (approved source plus license metadata) with tests.
 
 ## Phased roadmap
 
