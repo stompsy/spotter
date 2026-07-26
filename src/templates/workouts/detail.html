@@ -164,6 +164,7 @@
         <section class="rounded-2xl border border-white/10 bg-black/20 p-6">
           <h3 class="font-display text-xl font-bold uppercase tracking-wide text-white">Guided Composer</h3>
           <p class="mt-2 text-xs text-zinc-400">Apply reusable starter templates to quickly scaffold plan items.</p>
+          <p class="mt-2 text-xs text-brand-neon">{{ composer_suggestion_message }}</p>
           <form class="mt-4 space-y-3" method="post" action="{% url 'workouts:compose_template' slug=plan.slug %}">
             {% csrf_token %}
             <div>
@@ -171,7 +172,9 @@
               <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="composer_template_key" name="template_key" required>
                 <option value="">Select a guided template</option>
                 {% for option in composer_template_options %}
-                  <option value="{{ option.key }}">{{ option.label }}</option>
+                  <option value="{{ option.key }}" {% if option.key == composer_suggested_template_key %}selected{% endif %}>
+                    {{ option.label }}{% if option.key == composer_suggested_template_key %} (recommended){% endif %}
+                  </option>
                 {% endfor %}
               </select>
             </div>

@@ -63,6 +63,14 @@ CHALLENGE_PRESET_OPTIONS = [
 
 GUIDED_PLAN_COMPOSER_TEMPLATES = [
     {
+        "key": "starter_suggested",
+        "label": "Suggested Starter",
+        "description": (
+            "Automatically choose short, medium, or long starter cards based on "
+            "duration profile and available exercises."
+        ),
+    },
+    {
         "key": "starter_short",
         "label": "Short Session Starter",
         "description": "Add 3 reusable exercise cards tuned for short sessions.",
@@ -84,6 +92,25 @@ GUIDED_PLAN_COMPOSER_TEMPLATES = [
         "challenge_only": True,
     },
 ]
+
+
+COMPOSER_TEMPLATE_CONFIG = {
+    "starter_short": {
+        "duration_fit": ExerciseDurationFit.SHORT,
+        "target_count": 3,
+        "repetitions": "3 x 8",
+    },
+    "starter_medium": {
+        "duration_fit": ExerciseDurationFit.MEDIUM,
+        "target_count": 5,
+        "repetitions": "3 x 10",
+    },
+    "starter_long": {
+        "duration_fit": ExerciseDurationFit.LONG,
+        "target_count": 7,
+        "repetitions": "4 x 12",
+    },
+}
 
 
 class ExerciseListView(LoginRequiredMixin, ListView):
@@ -489,7 +516,13 @@ class WorkoutPlanDetailView(LoginRequiredMixin, DetailView):
             user=self.request.user,
         )
         context["can_manage"] = _can_manage_plan(self.request.user, self.object)
+        suggested_key = _get_suggested_composer_template_key(self.object)
         context["composer_template_options"] = _get_composer_template_options(self.object)
+        context["composer_suggested_template_key"] = suggested_key
+        context["composer_suggestion_message"] = _build_composer_suggestion_message(
+            self.object,
+            suggested_key,
+        )
         context["phases"] = self.object.phases.all()
         context["items"] = self.object.items.select_related("exercise").all()
         context["challenge_days"] = self.object.challenge_days.all()
@@ -686,8 +719,8 @@ def _build_unique_plan_slug(name: str) -> str:
     return slug
 
 
-def _get_composer_template_options(plan: WorkoutPlan) -> list[dict[str, str]]:
-    options: list[dict[str, str]] = []
+def _get_composer_template_options(plan: WorkoutPlan) -> list[dict[str, object]]:
+    options: list[dict[str, object]] = []
     for template in GUIDED_PLAN_COMPOSER_TEMPLATES:
         if template.get("challenge_only") and plan.plan_type != WorkoutPlanType.CHALLENGE:
             continue
@@ -696,14 +729,15 @@ def _get_composer_template_options(plan: WorkoutPlan) -> list[dict[str, str]]:
 
 
 def _apply_plan_composer_template(plan: WorkoutPlan, template_key: str) -> int:
-    template_map = {
-        "starter_short": (ExerciseDurationFit.SHORT, 3, "3 x 8"),
-        "starter_medium": (ExerciseDurationFit.MEDIUM, 5, "3 x 10"),
-        "starter_long": (ExerciseDurationFit.LONG, 7, "4 x 12"),
-    }
+    resolved_template_key = template_key
+    if template_key == "starter_suggested":
+        resolved_template_key = _get_suggested_composer_template_key(plan)
 
-    if template_key in template_map:
-        duration_fit, target_count, repetitions = template_map[template_key]
+    if resolved_template_key in COMPOSER_TEMPLATE_CONFIG:
+        template_config = COMPOSER_TEMPLATE_CONFIG[resolved_template_key]
+        duration_fit = template_config["duration_fit"]
+        target_count = template_config["target_count"]
+        repetitions = template_config["repetitions"]
         exercises = _select_composer_exercises(plan, duration_fit, target_count)
         if not exercises:
             raise ValueError("No active exercises available for that guided template.")
@@ -743,6 +777,67 @@ def _apply_plan_composer_template(plan: WorkoutPlan, template_key: str) -> int:
         return len(exercises)
 
     raise ValueError("Unknown guided template.")
+
+
+def _get_suggested_composer_template_key(plan: WorkoutPlan) -> str:
+    preferred_key = _duration_band_template_key(plan.duration_band)
+    existing_ids = set(plan.items.values_list("exercise_id", flat=True))
+    if not Exercise.objects.filter(is_active=True).exclude(id__in=existing_ids).exists():
+        return preferred_key
+
+    best_key = preferred_key
+    best_score = (-1.0, -1.0, -1)
+    for template_key, template_config in COMPOSER_TEMPLATE_CONFIG.items():
+        target_count = template_config["target_count"]
+        duration_fit = template_config["duration_fit"]
+
+        matching_count = Exercise.objects.filter(
+            is_active=True,
+            duration_fit=duration_fit,
+        ).exclude(id__in=existing_ids).count()
+        unspecified_count = Exercise.objects.filter(
+            is_active=True,
+            duration_fit=ExerciseDurationFit.UNSPECIFIED,
+        ).exclude(id__in=existing_ids).count()
+        fit_pool_count = matching_count + unspecified_count
+
+        adequacy_score = min(fit_pool_count / target_count, 1.0)
+        specificity_score = min(matching_count / target_count, 1.0)
+        band_alignment = 1 if template_key == preferred_key else 0
+        score = (adequacy_score, specificity_score, band_alignment)
+        if score > best_score:
+            best_score = score
+            best_key = template_key
+
+    return best_key
+
+
+def _duration_band_template_key(duration_band: str) -> str:
+    band_map = {
+        WorkoutPlanDurationBand.SHORT: "starter_short",
+        WorkoutPlanDurationBand.MEDIUM: "starter_medium",
+        WorkoutPlanDurationBand.LONG: "starter_long",
+    }
+    return band_map.get(duration_band, "starter_short")
+
+
+def _build_composer_suggestion_message(plan: WorkoutPlan, suggested_key: str) -> str:
+    option = next(
+        (
+            template
+            for template in GUIDED_PLAN_COMPOSER_TEMPLATES
+            if template["key"] == suggested_key
+        ),
+        None,
+    )
+    suggested_label = option["label"] if option else "Short Session Starter"
+    preferred_key = _duration_band_template_key(plan.duration_band)
+    if suggested_key == preferred_key:
+        return f"Recommended for this {plan.get_duration_band_display().lower()} plan."
+    return (
+        f"Recommended now: {suggested_label}. "
+        "This suggestion adapts to currently available exercise cards."
+    )
 
 
 def _next_plan_order(plan: WorkoutPlan) -> int:

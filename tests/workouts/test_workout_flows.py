@@ -467,6 +467,7 @@ def test_plan_detail_shows_guided_composer_for_manager(client):
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert "Guided Composer" in content
+    assert "Suggested Starter" in content
     assert "Short Session Starter" in content
 
 
@@ -576,6 +577,78 @@ def test_challenge_plan_manager_can_apply_challenge_day_template(client):
     assert len(items) == 2
     assert all(item.challenge_day_id == day.id for item in items)
     assert all("Guided challenge day template" in item.notes for item in items)
+
+
+@pytest.mark.django_db
+def test_suggested_starter_uses_plan_duration_band_when_fit_inventory_exists(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="suggested_medium_owner",
+        email="suggested_medium_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Suggested Medium Plan",
+        slug="suggested-medium-plan",
+        description="",
+        created_by=user,
+        duration_band="medium",
+    )
+    for index in range(1, 6):
+        Exercise.objects.create(
+            name=f"Medium Starter {index}",
+            slug=f"medium-starter-{index}",
+            category=ExerciseCategory.MOVEMENT_PREPARATION,
+            duration_fit=ExerciseDurationFit.MEDIUM,
+            is_active=True,
+        )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:compose_template", kwargs={"slug": plan.slug}),
+        {"template_key": "starter_suggested"},
+    )
+
+    assert response.status_code == 302
+    items = list(plan.items.order_by("order"))
+    assert len(items) == 5
+    assert all(item.repetitions == "3 x 10" for item in items)
+
+
+@pytest.mark.django_db
+def test_suggested_starter_falls_back_to_short_when_inventory_is_limited(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="suggested_fallback_owner",
+        email="suggested_fallback_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Suggested Fallback Plan",
+        slug="suggested-fallback-plan",
+        description="",
+        created_by=user,
+        duration_band="long",
+    )
+    for index in range(1, 4):
+        Exercise.objects.create(
+            name=f"Fallback Starter {index}",
+            slug=f"fallback-starter-{index}",
+            category=ExerciseCategory.MOVEMENT_PREPARATION,
+            duration_fit=ExerciseDurationFit.SHORT,
+            is_active=True,
+        )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:compose_template", kwargs={"slug": plan.slug}),
+        {"template_key": "starter_suggested"},
+    )
+
+    assert response.status_code == 302
+    items = list(plan.items.order_by("order"))
+    assert len(items) == 3
+    assert all(item.repetitions == "3 x 8" for item in items)
 
 
 @pytest.mark.django_db
