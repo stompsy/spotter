@@ -16,19 +16,51 @@ from .models import (
 
 
 class ExerciseCandidateAdminForm(forms.ModelForm):
+    source_name = forms.CharField(required=False)
+    source_url = forms.URLField(required=False, assume_scheme="https")
+    attribution_text = forms.CharField(required=False)
+    media_rights_confirmed = forms.BooleanField(required=False)
+    content_rewritten = forms.BooleanField(required=False)
+    safety_reviewed = forms.BooleanField(required=False)
+
     class Meta:
         model = ExerciseCandidate
         fields = "__all__"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        metadata = self.instance.metadata if isinstance(self.instance.metadata, dict) else {}
+        self.fields["source_name"].initial = metadata.get("source_name", "")
+        self.fields["source_url"].initial = metadata.get("source_url", "")
+        self.fields["attribution_text"].initial = metadata.get("attribution_text", "")
+        self.fields["media_rights_confirmed"].initial = metadata.get(
+            "media_rights_confirmed",
+            False,
+        )
+        self.fields["content_rewritten"].initial = metadata.get("content_rewritten", False)
+        self.fields["safety_reviewed"].initial = metadata.get("safety_reviewed", False)
+
+        self.fields["source_name"].help_text = "Required when status is published."
+        self.fields["source_url"].help_text = "Required when status is published."
+        self.fields["attribution_text"].help_text = "Required when status is published."
+        self.fields["media_rights_confirmed"].help_text = "Must be checked to publish."
+        self.fields["content_rewritten"].help_text = "Must be checked to publish."
+        self.fields["safety_reviewed"].help_text = "Must be checked to publish."
         self.fields["metadata"].help_text = (
-            "Publish requires metadata keys: source_name, source_url, attribution_text, "
-            "media_rights_confirmed=true, content_rewritten=true, safety_reviewed=true."
+            "Optional extra metadata JSON. Publish checks use the structured fields above."
         )
 
     def clean(self):
         cleaned_data = super().clean()
+        metadata = cleaned_data.get("metadata") or {}
+        metadata["source_name"] = (cleaned_data.get("source_name") or "").strip()
+        metadata["source_url"] = (cleaned_data.get("source_url") or "").strip()
+        metadata["attribution_text"] = (cleaned_data.get("attribution_text") or "").strip()
+        metadata["media_rights_confirmed"] = bool(cleaned_data.get("media_rights_confirmed"))
+        metadata["content_rewritten"] = bool(cleaned_data.get("content_rewritten"))
+        metadata["safety_reviewed"] = bool(cleaned_data.get("safety_reviewed"))
+        cleaned_data["metadata"] = metadata
+
         if cleaned_data.get("status") != CurationStatus.PUBLISHED:
             return cleaned_data
 
@@ -46,7 +78,7 @@ class ExerciseCandidateAdminForm(forms.ModelForm):
             raw_name=cleaned_data.get("raw_name") or "",
             normalized_name=cleaned_data.get("normalized_name") or "",
             status=cleaned_data["status"],
-            metadata=cleaned_data.get("metadata") or {},
+            metadata=metadata,
         )
         try:
             candidate.validate_publish_metadata()
@@ -93,6 +125,48 @@ class ExerciseSourceAdmin(admin.ModelAdmin):
 @admin.register(ExerciseCandidate)
 class ExerciseCandidateAdmin(admin.ModelAdmin):
     form = ExerciseCandidateAdminForm
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "source",
+                    "raw_name",
+                    "normalized_name",
+                    "status",
+                    "confidence",
+                )
+            },
+        ),
+        (
+            "Publish metadata",
+            {
+                "fields": (
+                    "source_name",
+                    "source_url",
+                    "attribution_text",
+                    "media_rights_confirmed",
+                    "content_rewritten",
+                    "safety_reviewed",
+                ),
+                "description": "Complete these fields before publishing candidates.",
+            },
+        ),
+        (
+            "Review metadata",
+            {
+                "fields": (
+                    "reviewed_by",
+                    "reviewed_at",
+                    "decision_reason",
+                )
+            },
+        ),
+        (
+            "Additional metadata",
+            {"fields": ("metadata",), "classes": ("collapse",)},
+        ),
+    )
     list_display = (
         "normalized_name",
         "raw_name",
