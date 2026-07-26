@@ -19,6 +19,7 @@
                 <div>
                   <h3 class="font-display text-2xl font-bold uppercase tracking-wide text-white">{{ exercise.name }}</h3>
                   <p class="mt-1 text-xs uppercase tracking-[0.2em] text-zinc-400">{{ exercise.get_category_display }}</p>
+                  <p class="mt-1 text-xs text-zinc-400">{{ exercise.get_movement_type_display }} | {{ exercise.get_primary_body_area_display }} | {{ exercise.get_difficulty_level_display }} | {{ exercise.get_equipment_requirement_display }}</p>
                 </div>
                 <form method="post" action="{% url 'workouts:exercise_toggle_active' exercise_id=exercise.id %}">
                   {% csrf_token %}
@@ -43,6 +44,38 @@
                     <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="category_{{ exercise.id }}" name="category">
                       {% for value, label in exercise_category_choices %}
                         <option value="{{ value }}" {% if value == exercise.category %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="movement_type_{{ exercise.id }}">Movement type</label>
+                    <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="movement_type_{{ exercise.id }}" name="movement_type">
+                      {% for value, label in exercise_movement_type_choices %}
+                        <option value="{{ value }}" {% if value == exercise.movement_type %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="primary_body_area_{{ exercise.id }}">Primary body area</label>
+                    <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="primary_body_area_{{ exercise.id }}" name="primary_body_area">
+                      {% for value, label in exercise_body_area_choices %}
+                        <option value="{{ value }}" {% if value == exercise.primary_body_area %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="difficulty_level_{{ exercise.id }}">Difficulty</label>
+                    <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="difficulty_level_{{ exercise.id }}" name="difficulty_level">
+                      {% for value, label in exercise_difficulty_level_choices %}
+                        <option value="{{ value }}" {% if value == exercise.difficulty_level %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="equipment_requirement_{{ exercise.id }}">Equipment requirement</label>
+                    <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="equipment_requirement_{{ exercise.id }}" name="equipment_requirement">
+                      {% for value, label in exercise_equipment_requirement_choices %}
+                        <option value="{{ value }}" {% if value == exercise.equipment_requirement %}selected{% endif %}>{{ label }}</option>
                       {% endfor %}
                     </select>
                   </div>

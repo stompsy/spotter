@@ -7,8 +7,12 @@ from apps.communities.models import Community, CommunityMembership, MembershipRo
 from apps.workouts.models import (
     CurationStatus,
     Exercise,
+    ExerciseBodyArea,
     ExerciseCandidate,
     ExerciseCategory,
+    ExerciseDifficultyLevel,
+    ExerciseEquipmentRequirement,
+    ExerciseMovementType,
     ExerciseSource,
     ExerciseSourceType,
     WorkoutPlan,
@@ -141,6 +145,10 @@ def test_user_can_create_and_archive_exercise(client):
         {
             "name": "Lunge Matrix",
             "category": ExerciseCategory.CALISTHENICS,
+            "movement_type": ExerciseMovementType.LUNGE,
+            "primary_body_area": ExerciseBodyArea.LOWER_BODY,
+            "difficulty_level": ExerciseDifficultyLevel.BEGINNER,
+            "equipment_requirement": ExerciseEquipmentRequirement.NONE,
             "description": "Multi-direction lunge prep",
             "instructions": "2 sets each direction",
             "is_active": "on",
@@ -150,6 +158,10 @@ def test_user_can_create_and_archive_exercise(client):
     assert create_response.status_code == 302
     exercise = Exercise.objects.get(name="Lunge Matrix")
     assert exercise.is_active is True
+    assert exercise.movement_type == ExerciseMovementType.LUNGE
+    assert exercise.primary_body_area == ExerciseBodyArea.LOWER_BODY
+    assert exercise.difficulty_level == ExerciseDifficultyLevel.BEGINNER
+    assert exercise.equipment_requirement == ExerciseEquipmentRequirement.NONE
 
     archive_response = client.post(
         reverse("workouts:exercise_toggle_active", kwargs={"exercise_id": exercise.id}),
@@ -157,6 +169,50 @@ def test_user_can_create_and_archive_exercise(client):
     assert archive_response.status_code == 302
     exercise.refresh_from_db()
     assert exercise.is_active is False
+
+
+@pytest.mark.django_db
+def test_user_can_update_exercise_taxonomy_fields(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="exercise_editor",
+        email="exercise_editor@example.com",
+        password="pw",
+    )
+    exercise = Exercise.objects.create(
+        name="Push Press",
+        slug="push-press",
+        category=ExerciseCategory.CALISTHENICS,
+        movement_type=ExerciseMovementType.PUSH,
+        primary_body_area=ExerciseBodyArea.UPPER_BODY,
+        difficulty_level=ExerciseDifficultyLevel.INTERMEDIATE,
+        equipment_requirement=ExerciseEquipmentRequirement.STANDARD_GYM,
+        description="Original",
+        instructions="Original",
+        is_active=True,
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:exercise_edit", kwargs={"exercise_id": exercise.id}),
+        {
+            "name": "Push Press",
+            "category": ExerciseCategory.CALISTHENICS,
+            "movement_type": ExerciseMovementType.PUSH,
+            "primary_body_area": ExerciseBodyArea.SHOULDERS,
+            "difficulty_level": ExerciseDifficultyLevel.ADVANCED,
+            "equipment_requirement": ExerciseEquipmentRequirement.SPECIALIZED,
+            "description": "Updated",
+            "instructions": "Updated",
+            "is_active": "on",
+        },
+    )
+
+    assert response.status_code == 302
+    exercise.refresh_from_db()
+    assert exercise.primary_body_area == ExerciseBodyArea.SHOULDERS
+    assert exercise.difficulty_level == ExerciseDifficultyLevel.ADVANCED
+    assert exercise.equipment_requirement == ExerciseEquipmentRequirement.SPECIALIZED
 
 
 @pytest.mark.django_db
