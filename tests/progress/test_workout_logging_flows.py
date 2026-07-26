@@ -9,7 +9,12 @@ from django.utils import timezone
 
 from apps.communities.models import Community
 from apps.progress.models import WorkoutLog
-from apps.workouts.models import WorkoutPlan, WorkoutPlanAssignment
+from apps.workouts.models import (
+    WorkoutChallengeDay,
+    WorkoutChallengeDayCompletion,
+    WorkoutPlan,
+    WorkoutPlanAssignment,
+)
 
 
 @pytest.mark.django_db
@@ -569,3 +574,109 @@ def test_progress_trend_export_csv_uses_trend_window(client):
     assert int(rows[0]["entry_count"]) == 1
     assert int(rows[0]["height_pct"]) == 70
     assert int(rows[0]["window_days"]) == 7
+
+
+@pytest.mark.django_db
+def test_progress_logs_show_challenge_kpis_with_adherence_streak_and_checkpoints(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="challenge_kpi_user",
+        email="challenge_kpi_user@example.com",
+        password="pw",
+    )
+    coach = user_model.objects.create_user(
+        username="challenge_kpi_coach",
+        email="challenge_kpi_coach@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Challenge KPI Plan",
+        slug="challenge-kpi-plan",
+        created_by=coach,
+        plan_type="challenge",
+        challenge_duration_days=5,
+        challenge_focus_area="Core",
+    )
+    day_1 = WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=1,
+        title="Day 1",
+        target_duration_minutes=10,
+    )
+    day_2 = WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=2,
+        title="Day 2",
+        target_duration_minutes=10,
+        notes="Checkpoint",
+    )
+    WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=3,
+        title="Day 3",
+        target_duration_minutes=10,
+        notes="Checkpoint",
+    )
+    WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=4,
+        title="Day 4",
+        target_duration_minutes=10,
+    )
+    WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=5,
+        title="Day 5",
+        target_duration_minutes=10,
+    )
+    WorkoutPlanAssignment.objects.create(
+        plan=plan,
+        assigned_to=user,
+        starts_on=timezone.localdate() - timedelta(days=2),
+        is_active=True,
+    )
+    WorkoutChallengeDayCompletion.objects.create(
+        challenge_day=day_1,
+        completed_by=user,
+        completed_minutes=10,
+    )
+    WorkoutChallengeDayCompletion.objects.create(
+        challenge_day=day_2,
+        completed_by=user,
+        completed_minutes=10,
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Challenge KPIs" in content
+    assert "66.7% (2/3 days)" in content
+    assert "Current 0 • Best 2" in content
+    assert "Baseline 100.0%" in content
+    assert "Current 0.0%" in content
+    assert "Delta -100.0%" in content
+    assert "Checkpoint Deltas" in content
+    assert "Challenge KPI Plan • Day 2" in content
+    assert "100.0%" in content
+    assert "Day 3" in content
+    assert "Delta -100.0%" in content
+
+
+@pytest.mark.django_db
+def test_progress_logs_show_empty_challenge_kpi_state_without_assignments(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="challenge_kpi_empty_user",
+        email="challenge_kpi_empty_user@example.com",
+        password="pw",
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Challenge KPIs" in content
+    assert "No active challenge assignments yet for KPI tracking." in content
