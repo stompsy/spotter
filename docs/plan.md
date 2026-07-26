@@ -49,6 +49,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 19 merged: Phase 1 normalized metadata expansion with safety/instruction authoring fields and default prescription ranges by goal.
 - Slice 20 merged: Phase 1 media support with ExerciseMedia model, upload/external URL validation, license metadata, and UI/admin/test coverage.
 - Slice 21 merged: Phase 1 workout plan semantics with plan type, duration band, and challenge-specific duration/focus fields plus validation and UI/test coverage.
+- Slice 22 merged: Phase 1 challenge-day structure model with day numbering guardrails, optional plan-item day linkage, detail view visibility, and test coverage.
 
 ## Phased roadmap
 
@@ -81,7 +82,7 @@ Progress notation used below:
 - ~~single-session, challenge, program~~
 - ~~short, medium, long sessions~~
 - ~~challenge duration and focus area~~
-5. [PENDING] Add challenge-day structure model.
+5. [DONE] ~~Add challenge-day structure model.~~
 6. [PENDING] Add optional phased periodization model.
 
 ### Phase 2 - Exercise Card Authoring and Discovery UX
