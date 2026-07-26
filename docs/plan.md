@@ -28,7 +28,8 @@ This is the visible implementation roadmap and status tracker in the workspace.
 ### Current implementation status
 - Plan approved for implementation kickoff on 2026-07-25.
 - Initial focus: Phase 1 foundation plus Phase 6 ingestion scaffolding in thin vertical slices.
-- Slice 1 completed locally: source registry, exercise candidates, ingestion command, admin integration, tests.
+- Slice 1 merged: source registry, exercise candidates, ingestion command, admin integration, tests.
+- Slice 2 merged: extraction run/page parser-routing scaffolding, command logging, admin visibility, and coverage tests.
 
 ## Phased roadmap
 
