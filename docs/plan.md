@@ -60,6 +60,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 30 merged: Phase 3 adaptive template suggestions with inventory-aware short/medium/long recommendation logic and guided composer suggestion coverage tests.
 - Slice 31 merged: Phase 3 challenge wizard with focus-area, duration, progression style, checkpoint cadence inputs, scaffolded challenge-day generation, and wizard behavior tests.
 - Slice 32 merged: Phase 3 split completion behavior with per-day partial logging, cumulative target progress states, and challenge completion flow coverage.
+- Slice 33 merged: Phase 3 challenge validation rules for balance, recovery spacing, and warm-up/cooldown coverage with publish-time guardrails and validation feedback tests.
 
 ## Phased roadmap
 
@@ -106,7 +107,7 @@ Progress notation used below:
 2. [DONE] ~~Support short/medium/long templates with suggestion logic.~~
 3. [DONE] ~~Add challenge wizard (focus area, duration, progression, checkpoints).~~
 4. [DONE] ~~Support split completion behavior for daily targets.~~
-5. [PENDING] Add validation rules for balance, recovery spacing, and warm-up/cooldown coverage.
+5. [DONE] ~~Add validation rules for balance, recovery spacing, and warm-up/cooldown coverage.~~
 
 ### Phase 4 - Calendar System (Full View Set in First Release)
 1. [PENDING] Introduce schedule layer from assignments and challenge days.
