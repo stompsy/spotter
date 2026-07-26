@@ -6,6 +6,7 @@ from .views import (
     ExerciseMediaCreateView,
     ExerciseToggleActiveView,
     ExerciseUpdateView,
+    WorkoutChallengeDayCompletionCreateView,
     WorkoutPlanAssignmentStateView,
     WorkoutPlanAssignView,
     WorkoutPlanCloneView,
@@ -47,6 +48,11 @@ urlpatterns = [
         name="publish_toggle",
     ),
     path("<slug:slug>/items/add/", WorkoutPlanItemCreateView.as_view(), name="add_item"),
+    path(
+        "<slug:slug>/challenge-completion/add/",
+        WorkoutChallengeDayCompletionCreateView.as_view(),
+        name="challenge_completion_add",
+    ),
     path(
         "<slug:slug>/compose/",
         WorkoutPlanComposeTemplateView.as_view(),

@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Case, IntegerField, Q, Value, When
+from django.db.models import Case, Count, IntegerField, Q, Sum, Value, When
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -19,6 +19,7 @@ from .forms import (
     ChallengeWizardForm,
     ExerciseForm,
     ExerciseMediaForm,
+    WorkoutChallengeDayCompletionForm,
     WorkoutPlanAssignmentForm,
     WorkoutPlanForm,
     WorkoutPlanItemForm,
@@ -36,6 +37,7 @@ from .models import (
     ExerciseMediaType,
     ExerciseMovementType,
     WorkoutChallengeDay,
+    WorkoutChallengeDayCompletion,
     WorkoutPlan,
     WorkoutPlanAssignment,
     WorkoutPlanDurationBand,
@@ -530,6 +532,10 @@ class WorkoutPlanDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["item_form"] = kwargs.get("item_form") or WorkoutPlanItemForm()
+        context["completion_form"] = (
+            kwargs.get("completion_form")
+            or WorkoutChallengeDayCompletionForm(plan=self.object)
+        )
         context["assignment_form"] = kwargs.get("assignment_form") or WorkoutPlanAssignmentForm(
             user=self.request.user
         )
@@ -547,7 +553,13 @@ class WorkoutPlanDetailView(LoginRequiredMixin, DetailView):
         )
         context["phases"] = self.object.phases.all()
         context["items"] = self.object.items.select_related("exercise").all()
-        context["challenge_days"] = self.object.challenge_days.all()
+        challenge_days = list(self.object.challenge_days.all())
+        _annotate_challenge_day_completion_state(
+            challenge_days,
+            plan=self.object,
+            user=self.request.user,
+        )
+        context["challenge_days"] = challenge_days
         context["assignments"] = self.object.assignments.select_related(
             "assigned_to", "assigned_community"
         ).order_by("-created_at")
@@ -647,6 +659,34 @@ class WorkoutPlanItemCreateView(LoginRequiredMixin, View):
             request,
             "workouts/detail.html",
             detail_view.get_context_data(item_form=form),
+        )
+        response.status_code = 400
+        return response
+
+
+class WorkoutChallengeDayCompletionCreateView(LoginRequiredMixin, View):
+    def post(self, request: HttpRequest, slug: str) -> HttpResponse:
+        plan = get_object_or_404(WorkoutPlan, slug=slug)
+        if not _can_view_plan(request.user, plan):
+            raise Http404("Workout plan not found")
+        if plan.plan_type != WorkoutPlanType.CHALLENGE:
+            raise Http404("Challenge completion is only available for challenge plans")
+
+        form = WorkoutChallengeDayCompletionForm(request.POST, plan=plan)
+        if form.is_valid():
+            completion = form.save(commit=False)
+            completion.completed_by = request.user
+            completion.save()
+            messages.success(request, "Challenge progress logged.")
+            return redirect("workouts:detail", slug=plan.slug)
+
+        detail_view = WorkoutPlanDetailView()
+        detail_view.request = request
+        detail_view.object = plan
+        response = render(
+            request,
+            "workouts/detail.html",
+            detail_view.get_context_data(completion_form=form),
         )
         response.status_code = 400
         return response
@@ -1009,6 +1049,50 @@ def _challenge_day_progression_note(progression_style: str) -> str:
         progression_style,
         "Progression: add a small amount of work while maintaining form.",
     )
+
+
+def _annotate_challenge_day_completion_state(
+    challenge_days: list[WorkoutChallengeDay],
+    *,
+    plan: WorkoutPlan,
+    user,
+) -> None:
+    for day in challenge_days:
+        day.user_completed_minutes = 0
+        day.user_split_count = 0
+        day.user_completion_state = "not_started"
+
+    if plan.plan_type != WorkoutPlanType.CHALLENGE or not challenge_days:
+        return
+
+    completion_rows = (
+        WorkoutChallengeDayCompletion.objects.filter(
+            challenge_day__plan=plan,
+            completed_by=user,
+        )
+        .values("challenge_day_id")
+        .annotate(
+            completed_minutes=Sum("completed_minutes"),
+            split_count=Count("id"),
+        )
+    )
+    completion_by_day_id = {
+        row["challenge_day_id"]: row
+        for row in completion_rows
+    }
+
+    for day in challenge_days:
+        row = completion_by_day_id.get(day.id)
+        if row is None:
+            continue
+
+        day.user_completed_minutes = int(row["completed_minutes"] or 0)
+        day.user_split_count = int(row["split_count"] or 0)
+        target_minutes = day.target_duration_minutes or 0
+        if target_minutes > 0 and day.user_completed_minutes >= target_minutes:
+            day.user_completion_state = "complete"
+        else:
+            day.user_completion_state = "partial"
 
 
 def _create_challenge_preset_plan(user, preset_key: str) -> WorkoutPlan:

@@ -499,6 +499,31 @@ class WorkoutChallengeDay(models.Model):
         return super().save(*args, **kwargs)
 
 
+class WorkoutChallengeDayCompletion(models.Model):
+    challenge_day = models.ForeignKey(
+        WorkoutChallengeDay,
+        on_delete=models.CASCADE,
+        related_name="completions",
+    )
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="challenge_day_completions",
+    )
+    completed_minutes = models.PositiveSmallIntegerField()
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+    def __str__(self) -> str:
+        return (
+            f"{self.completed_by} - {self.challenge_day} "
+            f"({self.completed_minutes} min)"
+        )
+
+
 class WorkoutPlanPhase(models.Model):
     plan = models.ForeignKey(
         WorkoutPlan,
