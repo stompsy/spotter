@@ -219,7 +219,10 @@ class Command(BaseCommand):
             slug="bundle-warm-up-foundations",
             defaults={
                 "name": "Warm-Up Foundations",
-                "description": "Short prep flow for joints, core activation, and movement quality.",
+                "description": (
+                    "Short prep flow for joints, core activation, "
+                    "and movement quality."
+                ),
                 "created_by": created_by,
                 "plan_type": WorkoutPlanType.SINGLE_SESSION,
                 "is_template": True,
@@ -252,7 +255,10 @@ class Command(BaseCommand):
             slug="bundle-calisthenics-base",
             defaults={
                 "name": "Calisthenics Base Builder",
-                "description": "Foundational push, squat, and core work for general strength.",
+                "description": (
+                    "Foundational push, squat, and core work "
+                    "for general strength."
+                ),
                 "created_by": created_by,
                 "plan_type": WorkoutPlanType.SINGLE_SESSION,
                 "is_template": True,
@@ -285,7 +291,10 @@ class Command(BaseCommand):
             slug="bundle-cooldown-reset",
             defaults={
                 "name": "Cooldown Reset",
-                "description": "Breathing and mobility sequence to down-regulate after training.",
+                "description": (
+                    "Breathing and mobility sequence to "
+                    "down-regulate after training."
+                ),
                 "created_by": created_by,
                 "plan_type": WorkoutPlanType.SINGLE_SESSION,
                 "is_template": True,
@@ -318,7 +327,10 @@ class Command(BaseCommand):
             slug="bundle-30-day-abs",
             defaults={
                 "name": "30-Day Abs Challenge Seed",
-                "description": "Progressive core challenge seed with checkpoint cadence every 5 days.",
+                "description": (
+                    "Progressive core challenge seed with "
+                    "checkpoint cadence every 5 days."
+                ),
                 "created_by": created_by,
                 "plan_type": WorkoutPlanType.CHALLENGE,
                 "challenge_duration_days": 30,
@@ -345,7 +357,10 @@ class Command(BaseCommand):
             slug="bundle-30-day-lunge",
             defaults={
                 "name": "30-Day Lunge Challenge Seed",
-                "description": "Progressive lunge-volume challenge seed with checkpoint cadence every 5 days.",
+                "description": (
+                    "Progressive lunge-volume challenge seed with "
+                    "checkpoint cadence every 5 days."
+                ),
                 "created_by": created_by,
                 "plan_type": WorkoutPlanType.CHALLENGE,
                 "challenge_duration_days": 30,

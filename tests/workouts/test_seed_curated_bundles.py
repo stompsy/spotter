@@ -24,7 +24,10 @@ def test_seed_curated_bundles_creates_expected_bundle_plans_and_challenge_days()
         "bundle-30-day-abs",
         "bundle-30-day-lunge",
     }
-    assert WorkoutPlan.objects.filter(slug__in=plan_slugs).count() == len(plan_slugs)
+    assert (
+        WorkoutPlan.objects.filter(slug__in=plan_slugs).count()
+        == len(plan_slugs)
+    )
 
     abs_plan = WorkoutPlan.objects.get(slug="bundle-30-day-abs")
     lunge_plan = WorkoutPlan.objects.get(slug="bundle-30-day-lunge")
@@ -78,7 +81,10 @@ def test_seed_curated_bundles_is_idempotent():
         "reverse-lunge",
         "lateral-lunge",
     }
-    assert Exercise.objects.filter(slug__in=required_exercises).count() == len(required_exercises)
+    assert (
+        Exercise.objects.filter(slug__in=required_exercises).count()
+        == len(required_exercises)
+    )
 
 
 @pytest.mark.django_db
