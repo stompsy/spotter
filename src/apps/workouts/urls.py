@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     ExerciseCandidateReviewActionView,
     ExerciseListView,
+    ExerciseMediaCreateView,
     ExerciseToggleActiveView,
     ExerciseUpdateView,
     WorkoutPlanAssignmentStateView,
@@ -25,6 +26,11 @@ urlpatterns = [
         "exercises/<int:exercise_id>/toggle-active/",
         ExerciseToggleActiveView.as_view(),
         name="exercise_toggle_active",
+    ),
+    path(
+        "exercises/<int:exercise_id>/media/add/",
+        ExerciseMediaCreateView.as_view(),
+        name="exercise_media_add",
     ),
     path(
         "exercise-candidates/<int:candidate_id>/review/",

@@ -8,6 +8,7 @@ from .models import (
     ExerciseCandidateDecision,
     ExerciseExtractionPage,
     ExerciseExtractionRun,
+    ExerciseMedia,
     ExerciseSource,
     WorkoutPlan,
     WorkoutPlanAssignment,
@@ -88,11 +89,30 @@ class ExerciseCandidateAdminForm(forms.ModelForm):
         return cleaned_data
 
 
+class ExerciseMediaInline(admin.TabularInline):
+    model = ExerciseMedia
+    extra = 0
+
+
 @admin.register(Exercise)
 class ExerciseAdmin(admin.ModelAdmin):
     list_display = ("name", "category", "is_active")
     list_filter = ("category", "is_active")
     search_fields = ("name", "slug", "description")
+    inlines = [ExerciseMediaInline]
+
+
+@admin.register(ExerciseMedia)
+class ExerciseMediaAdmin(admin.ModelAdmin):
+    list_display = (
+        "exercise",
+        "media_type",
+        "license_name",
+        "external_url",
+        "created_at",
+    )
+    list_filter = ("media_type",)
+    search_fields = ("exercise__name", "license_name", "attribution_text", "external_url")
 
 
 class WorkoutPlanItemInline(admin.TabularInline):

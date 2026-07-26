@@ -6,7 +6,7 @@ from django.utils.text import slugify
 
 from apps.communities.models import Community, MembershipStatus
 
-from .models import Exercise, WorkoutPlan, WorkoutPlanAssignment, WorkoutPlanItem
+from .models import Exercise, ExerciseMedia, WorkoutPlan, WorkoutPlanAssignment, WorkoutPlanItem
 
 
 class ExerciseForm(forms.ModelForm):
@@ -128,3 +128,18 @@ class WorkoutPlanAssignmentForm(forms.ModelForm):
                 "Assign to either one user or one community, not both."
             )
         return cleaned_data
+
+
+class ExerciseMediaForm(forms.ModelForm):
+    external_url = forms.URLField(required=False, assume_scheme="https")
+
+    class Meta:
+        model = ExerciseMedia
+        fields = [
+            "media_type",
+            "file",
+            "external_url",
+            "license_name",
+            "attribution_text",
+            "rights_notes",
+        ]
