@@ -659,6 +659,98 @@ def test_challenge_plan_manager_can_apply_challenge_day_template(client):
 
 
 @pytest.mark.django_db
+def test_challenge_detail_shows_split_completion_controls(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="split_controls_owner",
+        email="split_controls_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Split Controls Challenge",
+        slug="split-controls-challenge",
+        description="",
+        created_by=user,
+        plan_type="challenge",
+        duration_band="short",
+        challenge_duration_days=7,
+        challenge_focus_area="Core",
+    )
+    WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=1,
+        title="Day One",
+        focus_area="Core",
+        target_duration_minutes=10,
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("workouts:detail", kwargs={"slug": plan.slug}))
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Log Daily Completion" in content
+    assert "Your progress: 0 / 10 min" in content
+    assert "Status:" in content
+
+
+@pytest.mark.django_db
+def test_user_can_log_split_completion_until_daily_target_is_complete(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="split_logger",
+        email="split_logger@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Split Logging Challenge",
+        slug="split-logging-challenge",
+        description="",
+        created_by=user,
+        plan_type="challenge",
+        duration_band="short",
+        challenge_duration_days=7,
+        challenge_focus_area="Core",
+    )
+    day = WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=1,
+        title="Day One",
+        focus_area="Core",
+        target_duration_minutes=10,
+    )
+
+    client.force_login(user)
+    first_response = client.post(
+        reverse("workouts:challenge_completion_add", kwargs={"slug": plan.slug}),
+        {
+            "challenge_day": day.id,
+            "completed_minutes": "4",
+            "notes": "Morning split",
+        },
+    )
+    assert first_response.status_code == 302
+
+    second_response = client.post(
+        reverse("workouts:challenge_completion_add", kwargs={"slug": plan.slug}),
+        {
+            "challenge_day": day.id,
+            "completed_minutes": "6",
+            "notes": "Evening split",
+        },
+    )
+    assert second_response.status_code == 302
+
+    detail_response = client.get(reverse("workouts:detail", kwargs={"slug": plan.slug}))
+    assert detail_response.status_code == 200
+    content = detail_response.content.decode("utf-8")
+    assert "Your progress: 10 / 10 min" in content
+    assert "2 splits" in content
+    assert "Status:" in content
+    assert "Complete" in content
+
+
+@pytest.mark.django_db
 def test_suggested_starter_uses_plan_duration_band_when_fit_inventory_exists(client):
     user_model = get_user_model()
     user = user_model.objects.create_user(

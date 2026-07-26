@@ -6,7 +6,14 @@ from django.utils.text import slugify
 
 from apps.communities.models import Community, MembershipStatus
 
-from .models import Exercise, ExerciseMedia, WorkoutPlan, WorkoutPlanAssignment, WorkoutPlanItem
+from .models import (
+    Exercise,
+    ExerciseMedia,
+    WorkoutChallengeDayCompletion,
+    WorkoutPlan,
+    WorkoutPlanAssignment,
+    WorkoutPlanItem,
+)
 
 
 class ExerciseForm(forms.ModelForm):
@@ -190,6 +197,33 @@ class WorkoutPlanItemForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["order"].required = False
         self.fields["exercise"].queryset = Exercise.objects.filter(is_active=True).order_by("name")
+
+
+class WorkoutChallengeDayCompletionForm(forms.ModelForm):
+    class Meta:
+        model = WorkoutChallengeDayCompletion
+        fields = ["challenge_day", "completed_minutes", "notes"]
+        widgets = {
+            "notes": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, plan=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.plan = plan
+        self.fields["completed_minutes"].min_value = 1
+        self.fields["completed_minutes"].max_value = 240
+
+        if plan is None:
+            self.fields["challenge_day"].queryset = self.fields["challenge_day"].queryset.none()
+            return
+
+        self.fields["challenge_day"].queryset = plan.challenge_days.order_by("day_number", "id")
+
+    def clean_challenge_day(self):
+        challenge_day = self.cleaned_data["challenge_day"]
+        if self.plan is not None and challenge_day.plan_id != self.plan.id:
+            raise forms.ValidationError("Challenge day does not belong to this plan.")
+        return challenge_day
 
 
 class WorkoutPlanAssignmentForm(forms.ModelForm):

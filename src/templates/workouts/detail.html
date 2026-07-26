@@ -77,6 +77,22 @@
                   {% if day.focus_area %}Focus: {{ day.focus_area }}{% endif %}
                   {% if day.target_duration_minutes %}{% if day.focus_area %} • {% endif %}{{ day.target_duration_minutes }} min target{% endif %}
                 </p>
+                {% if day.target_duration_minutes %}
+                  <p class="mt-1 text-xs text-zinc-300">
+                    Your progress: {{ day.user_completed_minutes }} / {{ day.target_duration_minutes }} min
+                    {% if day.user_split_count %} • {{ day.user_split_count }} split{% if day.user_split_count != 1 %}s{% endif %}{% endif %}
+                  </p>
+                  <p class="mt-1 text-[11px] uppercase tracking-wide {% if day.user_completion_state == 'complete' %}text-emerald-300{% elif day.user_completion_state == 'partial' %}text-amber-300{% else %}text-zinc-500{% endif %}">
+                    Status:
+                    {% if day.user_completion_state == 'complete' %}
+                      Complete
+                    {% elif day.user_completion_state == 'partial' %}
+                      Partial
+                    {% else %}
+                      Not started
+                    {% endif %}
+                  </p>
+                {% endif %}
                 {% if day.notes %}<p class="mt-1 text-xs text-zinc-300">{{ day.notes }}</p>{% endif %}
               </li>
             {% endfor %}
@@ -160,6 +176,18 @@
     </article>
 
     <aside class="space-y-4">
+      {% if plan.plan_type == "challenge" %}
+        <section class="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 p-6">
+          <h3 class="font-display text-xl font-bold uppercase tracking-wide text-emerald-200">Log Daily Completion</h3>
+          <p class="mt-2 text-xs text-zinc-300">Split challenge targets across multiple sessions and track cumulative progress.</p>
+          <form class="mt-4 space-y-3" method="post" action="{% url 'workouts:challenge_completion_add' slug=plan.slug %}">
+            {% csrf_token %}
+            {{ completion_form.as_p }}
+            <button class="inline-flex rounded-full border border-emerald-200/60 bg-emerald-200/10 px-4 py-2 text-sm font-bold uppercase tracking-wide text-emerald-100" type="submit">Log split</button>
+          </form>
+        </section>
+      {% endif %}
+
       {% if can_manage %}
         <section class="rounded-2xl border border-white/10 bg-black/20 p-6">
           <h3 class="font-display text-xl font-bold uppercase tracking-wide text-white">Guided Composer</h3>
