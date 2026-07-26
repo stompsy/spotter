@@ -68,6 +68,20 @@
 
       {% if plan.plan_type == "challenge" %}
         <h3 class="mt-8 font-display text-2xl font-bold uppercase tracking-wide text-brand-neon">Challenge days</h3>
+        <section class="mt-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
+          <h4 class="text-sm font-bold uppercase tracking-wide text-amber-200">Challenge validation</h4>
+          {% if plan_validation_passed %}
+            <p class="mt-2 text-xs text-emerald-200">All challenge structure rules pass.</p>
+          {% else %}
+            <p class="mt-2 text-xs text-rose-200">Resolve the following before publishing:</p>
+            <ul class="mt-2 space-y-1 text-xs text-rose-100">
+              {% for issue in plan_validation_issues %}
+                <li>• {{ issue }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </section>
+
         {% if challenge_days %}
           <ul class="mt-4 space-y-2">
             {% for day in challenge_days %}
