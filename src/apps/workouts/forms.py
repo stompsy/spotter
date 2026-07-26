@@ -33,6 +33,33 @@ class ExerciseForm(forms.ModelForm):
             "is_active",
         ]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        base_class = (
+            "mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 "
+            "text-sm text-zinc-100"
+        )
+        textarea_rows = {
+            "description": 3,
+            "instructions": 4,
+            "contraindications": 3,
+            "safety_notes": 3,
+            "setup_steps": 3,
+            "execution_steps": 4,
+            "common_mistakes": 3,
+            "coaching_cues": 3,
+        }
+
+        for name, field in self.fields.items():
+            widget = field.widget
+            if isinstance(widget, forms.CheckboxInput):
+                widget.attrs.setdefault("class", "h-4 w-4 rounded border-white/20 bg-black/30")
+                continue
+
+            widget.attrs["class"] = base_class
+            if isinstance(widget, forms.Textarea):
+                widget.attrs.setdefault("rows", textarea_rows.get(name, 3))
+
     def clean_name(self):
         name = self.cleaned_data["name"].strip()
         if not name:
