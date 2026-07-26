@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Spotter | {{ plan.name }} Calendar{% endblock %}
+
+{% block content %}
+  <section class="space-y-6">
+    <header class="rounded-2xl border border-white/10 bg-gradient-to-br from-brand-panel to-brand-panel-soft p-6">
+      <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Plan calendar</p>
+      <h2 class="mt-2 font-display text-4xl font-bold uppercase tracking-wide text-white">{{ plan.name }}</h2>
+      <p class="mt-2 text-sm text-zinc-300">
+        {{ calendar_window_start|date:"Y-m-d" }} to {{ calendar_window_end|date:"Y-m-d" }}
+      </p>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <a class="rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-bold uppercase tracking-wide text-zinc-100" href="{% url 'workouts:calendar' slug=plan.slug %}?view={{ calendar_view_mode }}&date={{ calendar_prev_anchor|date:'Y-m-d' }}">Previous</a>
+        <a class="rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-bold uppercase tracking-wide text-zinc-100" href="{% url 'workouts:calendar' slug=plan.slug %}?view={{ calendar_view_mode }}&date={{ calendar_next_anchor|date:'Y-m-d' }}">Next</a>
+        <a class="rounded-full border border-brand-neon/50 bg-brand-neon/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand-neon" href="{% url 'workouts:detail' slug=plan.slug %}">Back to plan</a>
+      </div>
+      <div class="mt-4 flex flex-wrap gap-2">
+        {% for option in calendar_mode_options %}
+          <a class="rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide {% if option.key == calendar_view_mode %}border-brand-neon/70 bg-brand-neon/20 text-brand-neon{% else %}border-white/20 bg-white/5 text-zinc-200{% endif %}" href="{% url 'workouts:calendar' slug=plan.slug %}?view={{ option.key }}&date={{ calendar_anchor_date|date:'Y-m-d' }}">{{ option.label }}</a>
+        {% endfor %}
+      </div>
+    </header>
+
+    <section class="rounded-2xl border border-white/10 bg-black/20 p-6">
+      <h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-neon">Calendar Entries</h3>
+      <ul class="mt-4 space-y-2">
+        {% for row in calendar_day_rows %}
+          <li class="rounded-xl border border-white/10 bg-black/20 p-3">
+            <p class="text-sm font-semibold uppercase tracking-wide {% if row.is_today %}text-brand-neon{% else %}text-zinc-100{% endif %}">
+              {{ row.day|date:"Y-m-d" }}
+              {% if row.is_today %}• Today{% endif %}
+            </p>
+            {% if row.entries %}
+              <ul class="mt-2 space-y-1">
+                {% for entry in row.entries %}
+                  <li class="text-xs text-zinc-300">
+                    {{ entry.source_label }}
+                    {% if entry.challenge_day %}
+                      {% if entry.challenge_day.title %}• {{ entry.challenge_day.title }}{% endif %}
+                      {% if entry.challenge_day.target_duration_minutes %}• {{ entry.challenge_day.target_duration_minutes }} min target{% endif %}
+                    {% else %}
+                      {% if entry.assignment.assigned_to %}
+                        • User: {{ entry.assignment.assigned_to.username }}
+                      {% elif entry.assignment.assigned_community %}
+                        • Community: {{ entry.assignment.assigned_community.name }}
+                      {% endif %}
+                      {% if entry.assignment.recurs_every_days %}• every {{ entry.assignment.recurs_every_days }} days{% endif %}
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p class="mt-2 text-xs text-zinc-500">Rest day (no scheduled entry).</p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  </section>
+{% endblock %}

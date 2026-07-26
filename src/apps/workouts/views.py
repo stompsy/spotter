@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -571,6 +571,74 @@ class WorkoutPlanDetailView(LoginRequiredMixin, DetailView):
         context["schedule_preview_entries"] = _build_schedule_preview_entries(
             plan=self.object,
             user=self.request.user,
+        )
+        return context
+
+
+class WorkoutPlanCalendarView(LoginRequiredMixin, DetailView):
+    model = WorkoutPlan
+    template_name = "workouts/calendar.html"
+    context_object_name = "plan"
+    slug_field = "slug"
+    slug_url_kwarg = "slug"
+
+    def get_object(self, queryset=None):
+        plan = super().get_object(queryset)
+        if not _can_view_plan(self.request.user, plan):
+            raise Http404("Workout plan not found")
+        return plan
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        view_mode = _resolve_calendar_view_mode(self.request.GET.get("view", ""))
+        anchor_date = _parse_calendar_anchor_date(self.request.GET.get("date", ""))
+        window_start, window_end = _calendar_window_for_mode(anchor_date, view_mode)
+        calendar_entries = _build_schedule_entries_for_range(
+            plan=self.object,
+            user=self.request.user,
+            window_start=window_start,
+            window_end=window_end,
+            max_entries=1000,
+        )
+
+        entries_by_date: dict[date, list[dict[str, object]]] = {}
+        for entry in calendar_entries:
+            entries_by_date.setdefault(entry["scheduled_date"], []).append(entry)
+
+        day_rows = []
+        current_day = window_start
+        today = timezone.localdate()
+        while current_day <= window_end:
+            day_rows.append(
+                {
+                    "day": current_day,
+                    "is_today": current_day == today,
+                    "entries": entries_by_date.get(current_day, []),
+                }
+            )
+            current_day = current_day + timedelta(days=1)
+
+        context["calendar_view_mode"] = view_mode
+        context["calendar_anchor_date"] = anchor_date
+        context["calendar_window_start"] = window_start
+        context["calendar_window_end"] = window_end
+        context["calendar_day_rows"] = day_rows
+        context["calendar_mode_options"] = [
+            {"key": "daily", "label": "Daily"},
+            {"key": "rolling_3_day", "label": "Rolling 3-Day"},
+            {"key": "weekly", "label": "Weekly"},
+            {"key": "monthly", "label": "Monthly"},
+            {"key": "yearly", "label": "Yearly"},
+        ]
+        context["calendar_prev_anchor"] = _shift_calendar_anchor(
+            anchor_date,
+            view_mode,
+            direction=-1,
+        )
+        context["calendar_next_anchor"] = _shift_calendar_anchor(
+            anchor_date,
+            view_mode,
+            direction=1,
         )
         return context
 
@@ -1203,9 +1271,83 @@ def _collect_plan_structure_validation_issues(plan: WorkoutPlan) -> list[str]:
     return issues
 
 
-def _build_schedule_preview_entries(plan: WorkoutPlan, user) -> list[dict[str, object]]:
-    today = timezone.localdate()
-    horizon_end = today + timedelta(days=60)
+def _resolve_calendar_view_mode(raw_view_mode: str) -> str:
+    normalized = str(raw_view_mode or "").strip().lower()
+    allowed = {"daily", "rolling_3_day", "weekly", "monthly", "yearly"}
+    if normalized in allowed:
+        return normalized
+    return "weekly"
+
+
+def _parse_calendar_anchor_date(raw_anchor: str) -> date:
+    candidate = str(raw_anchor or "").strip()
+    if not candidate:
+        return timezone.localdate()
+
+    try:
+        return date.fromisoformat(candidate)
+    except ValueError:
+        return timezone.localdate()
+
+
+def _calendar_window_for_mode(anchor: date, view_mode: str) -> tuple[date, date]:
+    if view_mode == "daily":
+        return anchor, anchor
+
+    if view_mode == "rolling_3_day":
+        return anchor, anchor + timedelta(days=2)
+
+    if view_mode == "weekly":
+        start = anchor - timedelta(days=anchor.weekday())
+        return start, start + timedelta(days=6)
+
+    if view_mode == "monthly":
+        start = anchor.replace(day=1)
+        next_month = _add_months(start, 1)
+        return start, next_month - timedelta(days=1)
+
+    start_of_year = anchor.replace(month=1, day=1)
+    end_of_year = anchor.replace(month=12, day=31)
+    return start_of_year, end_of_year
+
+
+def _shift_calendar_anchor(anchor: date, view_mode: str, *, direction: int) -> date:
+    if view_mode == "daily":
+        return anchor + timedelta(days=direction)
+    if view_mode == "rolling_3_day":
+        return anchor + timedelta(days=3 * direction)
+    if view_mode == "weekly":
+        return anchor + timedelta(days=7 * direction)
+    if view_mode == "monthly":
+        return _add_months(anchor, direction)
+    return anchor.replace(year=anchor.year + direction)
+
+
+def _add_months(value: date, month_delta: int) -> date:
+    month_index = value.month - 1 + month_delta
+    target_year = value.year + (month_index // 12)
+    target_month = (month_index % 12) + 1
+
+    if target_month == 12:
+        next_month_start = date(target_year + 1, 1, 1)
+    else:
+        next_month_start = date(target_year, target_month + 1, 1)
+    month_end_day = (next_month_start - timedelta(days=1)).day
+
+    target_day = min(value.day, month_end_day)
+    return date(target_year, target_month, target_day)
+
+
+def _build_schedule_entries_for_range(
+    *,
+    plan: WorkoutPlan,
+    user,
+    window_start: date,
+    window_end: date,
+    max_entries: int,
+) -> list[dict[str, object]]:
+    if window_end < window_start:
+        return []
 
     community_ids = set(
         CommunityMembership.objects.filter(
@@ -1224,7 +1366,6 @@ def _build_schedule_preview_entries(plan: WorkoutPlan, user) -> list[dict[str, o
         .select_related("assigned_to", "assigned_community")
         .order_by("starts_on", "id")
     )
-
     if not assignments:
         return []
 
@@ -1241,22 +1382,20 @@ def _build_schedule_preview_entries(plan: WorkoutPlan, user) -> list[dict[str, o
         if challenge_days:
             for day_offset, challenge_day in enumerate(challenge_days):
                 scheduled_date = starts_on + timedelta(days=day_offset)
-                if scheduled_date < today or scheduled_date > horizon_end:
-                    continue
-
-                entries.append(
-                    {
-                        "scheduled_date": scheduled_date,
-                        "assignment": assignment,
-                        "challenge_day": challenge_day,
-                        "source_label": f"Challenge day {challenge_day.day_number}",
-                    }
-                )
+                if window_start <= scheduled_date <= window_end:
+                    entries.append(
+                        {
+                            "scheduled_date": scheduled_date,
+                            "assignment": assignment,
+                            "challenge_day": challenge_day,
+                            "source_label": f"Challenge day {challenge_day.day_number}",
+                        }
+                    )
             continue
 
         cadence_days = assignment.recurs_every_days or 0
         if cadence_days <= 0:
-            if today <= starts_on <= horizon_end:
+            if window_start <= starts_on <= window_end:
                 entries.append(
                     {
                         "scheduled_date": starts_on,
@@ -1268,18 +1407,18 @@ def _build_schedule_preview_entries(plan: WorkoutPlan, user) -> list[dict[str, o
             continue
 
         first_occurrence = starts_on
-        if first_occurrence < today:
-            elapsed_days = (today - first_occurrence).days
+        if first_occurrence < window_start:
+            elapsed_days = (window_start - first_occurrence).days
             skipped_windows = elapsed_days // cadence_days
             first_occurrence = first_occurrence + timedelta(
                 days=skipped_windows * cadence_days
             )
-            if first_occurrence < today:
+            if first_occurrence < window_start:
                 first_occurrence = first_occurrence + timedelta(days=cadence_days)
 
         scheduled_date = first_occurrence
         generated_count = 0
-        while scheduled_date <= horizon_end and generated_count < 24:
+        while scheduled_date <= window_end and generated_count < max_entries:
             entries.append(
                 {
                     "scheduled_date": scheduled_date,
@@ -1298,7 +1437,19 @@ def _build_schedule_preview_entries(plan: WorkoutPlan, user) -> list[dict[str, o
             entry["challenge_day"].day_number if entry["challenge_day"] else 0,
         )
     )
-    return entries[:120]
+    return entries[:max_entries]
+
+
+def _build_schedule_preview_entries(plan: WorkoutPlan, user) -> list[dict[str, object]]:
+    today = timezone.localdate()
+    horizon_end = today + timedelta(days=60)
+    return _build_schedule_entries_for_range(
+        plan=plan,
+        user=user,
+        window_start=today,
+        window_end=horizon_end,
+        max_entries=120,
+    )
 
 
 def _create_challenge_preset_plan(user, preset_key: str) -> WorkoutPlan:
