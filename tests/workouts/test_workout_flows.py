@@ -434,7 +434,7 @@ def test_user_can_create_and_archive_exercise(client):
         reverse("workouts:exercises"),
         {
             "name": "Lunge Matrix",
-            "category": ExerciseCategory.CALISTHENICS,
+            "category": ExerciseCategory.STRENGTH,
             "movement_type": ExerciseMovementType.LUNGE,
             "primary_body_area": ExerciseBodyArea.LOWER_BODY,
             "difficulty_level": ExerciseDifficultyLevel.BEGINNER,
@@ -457,6 +457,7 @@ def test_user_can_create_and_archive_exercise(client):
     assert create_response.status_code == 302
     exercise = Exercise.objects.get(name="Lunge Matrix")
     assert exercise.is_active is True
+    assert exercise.category == ExerciseCategory.STRENGTH
     assert exercise.movement_type == ExerciseMovementType.LUNGE
     assert exercise.primary_body_area == ExerciseBodyArea.LOWER_BODY
     assert exercise.difficulty_level == ExerciseDifficultyLevel.BEGINNER
@@ -514,7 +515,7 @@ def test_user_can_update_exercise_taxonomy_fields(client):
         reverse("workouts:exercise_edit", kwargs={"exercise_id": exercise.id}),
         {
             "name": "Push Press",
-            "category": ExerciseCategory.CALISTHENICS,
+            "category": ExerciseCategory.SKILL_PRACTICE,
             "movement_type": ExerciseMovementType.PUSH,
             "primary_body_area": ExerciseBodyArea.SHOULDERS,
             "difficulty_level": ExerciseDifficultyLevel.ADVANCED,
@@ -536,6 +537,7 @@ def test_user_can_update_exercise_taxonomy_fields(client):
 
     assert response.status_code == 302
     exercise.refresh_from_db()
+    assert exercise.category == ExerciseCategory.SKILL_PRACTICE
     assert exercise.primary_body_area == ExerciseBodyArea.SHOULDERS
     assert exercise.difficulty_level == ExerciseDifficultyLevel.ADVANCED
     assert exercise.equipment_requirement == ExerciseEquipmentRequirement.SPECIALIZED
@@ -768,7 +770,6 @@ def test_exercise_queue_filters_candidates_by_status_and_confidence(client):
         reverse("workouts:exercises"),
         {"candidate_status": CurationStatus.NEEDS_REVIEW, "confidence_band": "high"},
     )
-
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert "high confidence candidate" in content

@@ -6,6 +6,13 @@ from django.db import models
 class ExerciseCategory(models.TextChoices):
     MOVEMENT_PREPARATION = "movement_preparation", "Movement preparation"
     CALISTHENICS = "calisthenics", "Calisthenics"
+    STRENGTH = "strength", "Strength"
+    SKILL_PRACTICE = "skill_practice", "Skill practice"
+    PLYOMETRIC_POWER = "plyometric_power", "Plyometric and power"
+    CONDITIONING = "conditioning", "Conditioning"
+    MOBILITY_FLEXIBILITY = "mobility_flexibility", "Mobility and flexibility"
+    CORE_STABILITY = "core_stability", "Core stability"
+    BALANCE_COORDINATION = "balance_coordination", "Balance and coordination"
     POST_WORKOUT_REGENERATION = "post_workout_regeneration", "Post-workout regeneration"
 
 
