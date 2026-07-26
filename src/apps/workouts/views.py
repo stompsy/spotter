@@ -7,6 +7,7 @@ from django.db.models import Q
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
 from django.views import View
 from django.views.generic import DetailView, ListView
@@ -14,7 +15,14 @@ from django.views.generic import DetailView, ListView
 from apps.communities.models import CommunityMembership, MembershipRole, MembershipStatus
 
 from .forms import ExerciseForm, WorkoutPlanAssignmentForm, WorkoutPlanForm, WorkoutPlanItemForm
-from .models import CurationStatus, Exercise, ExerciseCandidate, WorkoutPlan, WorkoutPlanAssignment
+from .models import (
+    CurationStatus,
+    Exercise,
+    ExerciseCandidate,
+    ExerciseCategory,
+    WorkoutPlan,
+    WorkoutPlanAssignment,
+)
 
 
 class ExerciseListView(LoginRequiredMixin, ListView):
@@ -25,9 +33,54 @@ class ExerciseListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         return Exercise.objects.order_by("name")
 
+    def _get_filtered_candidates(self):
+        status = self.request.GET.get("candidate_status", "all").strip().lower()
+        confidence_band = self.request.GET.get("confidence_band", "all").strip().lower()
+
+        queryset = ExerciseCandidate.objects.select_related("source", "reviewed_by")
+
+        allowed_statuses = {choice[0] for choice in CurationStatus.choices}
+        if status != "all" and status in allowed_statuses:
+            queryset = queryset.filter(status=status)
+        else:
+            status = "all"
+
+        if confidence_band == "high":
+            queryset = queryset.filter(confidence__gte=0.85)
+        elif confidence_band == "medium":
+            queryset = queryset.filter(confidence__gte=0.60, confidence__lt=0.85)
+        elif confidence_band == "low":
+            queryset = queryset.filter(confidence__lt=0.60)
+        else:
+            confidence_band = "all"
+
+        return (
+            queryset.order_by("status", "-confidence", "normalized_name", "id"),
+            status,
+            confidence_band,
+        )
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        candidates, selected_status, selected_confidence_band = self._get_filtered_candidates()
         context["exercise_form"] = kwargs.get("exercise_form") or ExerciseForm()
+        context["exercise_category_choices"] = ExerciseCategory.choices
+        context["candidates"] = candidates
+        context["selected_candidate_status"] = selected_status
+        context["selected_confidence_band"] = selected_confidence_band
+        context["candidate_status_options"] = [
+            {"value": "all", "label": "All statuses"},
+            *[
+                {"value": value, "label": label}
+                for value, label in CurationStatus.choices
+            ],
+        ]
+        context["confidence_band_options"] = [
+            {"value": "all", "label": "All confidence"},
+            {"value": "high", "label": "High (>= 0.85)"},
+            {"value": "medium", "label": "Medium (0.60-0.84)"},
+            {"value": "low", "label": "Low (< 0.60)"},
+        ]
         return context
 
     def post(self, request: HttpRequest) -> HttpResponse:
@@ -71,6 +124,7 @@ class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
         candidate = get_object_or_404(ExerciseCandidate, id=candidate_id)
         action = request.POST.get("action", "").strip().lower()
         reason = request.POST.get("reason", "").strip()
+        next_url = request.POST.get("next", "").strip()
 
         action_map = {
             "mark_review": CurationStatus.NEEDS_REVIEW,
@@ -83,11 +137,19 @@ class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
         if new_status is None:
             raise Http404("Candidate action not found")
 
+        redirect_target = "workouts:exercises"
+        if next_url and url_has_allowed_host_and_scheme(
+            url=next_url,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            redirect_target = next_url
+
         try:
             candidate.transition_to(new_status)
         except ValidationError:
             messages.error(request, "Candidate status transition is not allowed.")
-            return redirect("workouts:exercises")
+            return redirect(redirect_target)
 
         candidate.reviewed_by = request.user
         candidate.reviewed_at = timezone.now()
@@ -102,7 +164,7 @@ class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
             ]
         )
         messages.success(request, f"Candidate moved to {new_status}.")
-        return redirect("workouts:exercises")
+        return redirect(redirect_target)
 
 
 class WorkoutPlanListView(LoginRequiredMixin, ListView):

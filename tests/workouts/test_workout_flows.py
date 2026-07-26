@@ -4,8 +4,12 @@ from django.urls import reverse
 
 from apps.communities.models import Community, CommunityMembership, MembershipRole, MembershipStatus
 from apps.workouts.models import (
+    CurationStatus,
     Exercise,
+    ExerciseCandidate,
     ExerciseCategory,
+    ExerciseSource,
+    ExerciseSourceType,
     WorkoutPlan,
     WorkoutPlanAssignment,
     WorkoutPlanItem,
@@ -259,3 +263,91 @@ def test_plan_creator_can_pause_resume_and_end_assignment(client):
     assignment.refresh_from_db()
     assert assignment.is_active is False
     assert assignment.ended_at is not None
+
+
+@pytest.mark.django_db
+def test_exercise_queue_filters_candidates_by_status_and_confidence(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="queue_reviewer",
+        email="queue_reviewer@example.com",
+        password="pw",
+    )
+    source = ExerciseSource.objects.create(
+        name="Queue source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/queue-source.txt",
+    )
+    ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="High confidence candidate",
+        normalized_name="high confidence candidate",
+        status=CurationStatus.NEEDS_REVIEW,
+        confidence=0.920,
+    )
+    ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Low confidence candidate",
+        normalized_name="low confidence candidate",
+        status=CurationStatus.NEEDS_REVIEW,
+        confidence=0.310,
+    )
+    ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Approved candidate",
+        normalized_name="approved candidate",
+        status=CurationStatus.APPROVED,
+        confidence=0.990,
+    )
+
+    client.force_login(user)
+    response = client.get(
+        reverse("workouts:exercises"),
+        {"candidate_status": CurationStatus.NEEDS_REVIEW, "confidence_band": "high"},
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "high confidence candidate" in content
+    assert "low confidence candidate" not in content
+    assert "approved candidate" not in content
+
+
+@pytest.mark.django_db
+def test_review_action_redirects_back_to_filtered_queue(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="queue_redirect_reviewer",
+        email="queue_redirect_reviewer@example.com",
+        password="pw",
+    )
+    source = ExerciseSource.objects.create(
+        name="Queue redirect source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/queue-redirect-source.txt",
+        is_approved=True,
+        license_name="CC BY 4.0",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Publish me",
+        normalized_name="publish me",
+        status=CurationStatus.APPROVED,
+        confidence=0.930,
+    )
+
+    client.force_login(user)
+    next_url = (
+        reverse("workouts:exercises")
+        + "?candidate_status=approved&confidence_band=high"
+    )
+    response = client.post(
+        reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id}),
+        {"action": "publish", "next": next_url, "reason": "Looks good"},
+    )
+
+    assert response.status_code == 302
+    assert response["Location"] == next_url
+    candidate.refresh_from_db()
+    assert candidate.status == CurationStatus.PUBLISHED
+    assert candidate.reviewed_by_id == user.id
