@@ -143,6 +143,30 @@
           <p class="mt-5 rounded-lg border border-dashed border-white/20 px-4 py-3 text-sm text-zinc-400">No candidates match the selected filters.</p>
         {% endif %}
       </section>
+
+      <section class="rounded-2xl border border-white/10 bg-black/20 p-6">
+        <header>
+          <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Audit trail</p>
+          <h3 class="mt-2 font-display text-xl font-bold uppercase tracking-wide text-white">Recent Decisions</h3>
+        </header>
+
+        {% if recent_candidate_decisions %}
+          <ul class="mt-4 space-y-2">
+            {% for decision in recent_candidate_decisions %}
+              <li class="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                <p class="text-sm text-zinc-100">{{ decision.candidate.normalized_name }}</p>
+                <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ decision.from_status }} -> {{ decision.to_status }} ({{ decision.action }})</p>
+                <p class="mt-1 text-xs text-zinc-500">{{ decision.decided_by|default:"Unknown" }} at {{ decision.decided_at }}</p>
+                {% if decision.reason %}
+                  <p class="mt-1 text-xs text-zinc-400">Reason: {{ decision.reason }}</p>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="mt-4 rounded-lg border border-dashed border-white/20 px-4 py-3 text-sm text-zinc-400">No review decisions recorded yet.</p>
+        {% endif %}
+      </section>
     </aside>
   </section>
 {% endblock %}

@@ -9,6 +9,7 @@ from django.urls import reverse
 from apps.workouts.models import (
     CurationStatus,
     ExerciseCandidate,
+    ExerciseCandidateDecision,
     ExerciseExtractionPage,
     ExerciseExtractionRun,
     ExerciseSource,
@@ -325,3 +326,80 @@ def test_exercise_candidate_review_action_persists_reviewer_metadata(client):
     assert candidate.reviewed_by == user
     assert candidate.reviewed_at is not None
     assert candidate.decision_reason == "Validated source and license"
+
+    decisions = ExerciseCandidateDecision.objects.filter(candidate=candidate)
+    assert decisions.count() == 1
+    decision = decisions.first()
+    assert decision is not None
+    assert decision.action == "publish"
+    assert decision.from_status == CurationStatus.APPROVED
+    assert decision.to_status == CurationStatus.PUBLISHED
+    assert decision.decided_by == user
+    assert decision.reason == "Validated source and license"
+
+
+@pytest.mark.django_db
+def test_exercise_candidate_review_action_does_not_write_decision_when_transition_rejected(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="candidate_reviewer_no_decision",
+        email="candidate_reviewer_no_decision@example.com",
+        password="pw",
+    )
+    source = ExerciseSource.objects.create(
+        name="No decision source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/no-decision-source.txt",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Forward Lunges",
+        normalized_name="forward lunge",
+        status=CurationStatus.DRAFT,
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id}),
+        {"action": "publish", "reason": "should fail"},
+    )
+
+    assert response.status_code == 302
+    assert ExerciseCandidateDecision.objects.filter(candidate=candidate).count() == 0
+
+
+@pytest.mark.django_db
+def test_exercise_candidate_decision_is_immutable_after_creation():
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="candidate_decision_owner",
+        email="candidate_decision_owner@example.com",
+        password="pw",
+    )
+    source = ExerciseSource.objects.create(
+        name="Decision source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/decision-source.txt",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Forward Lunges",
+        normalized_name="forward lunge",
+        status=CurationStatus.NEEDS_REVIEW,
+    )
+
+    decision = ExerciseCandidateDecision.objects.create(
+        candidate=candidate,
+        action="approve",
+        from_status=CurationStatus.NEEDS_REVIEW,
+        to_status=CurationStatus.APPROVED,
+        decided_by=user,
+        reason="initial reason",
+    )
+
+    decision.reason = "modified reason"
+    with pytest.raises(ValidationError):
+        decision.save()
+
+    with pytest.raises(ValidationError):
+        decision.delete()
