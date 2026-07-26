@@ -19,6 +19,7 @@ from .models import (
     CurationStatus,
     Exercise,
     ExerciseCandidate,
+    ExerciseCandidateDecision,
     ExerciseCategory,
     WorkoutPlan,
     WorkoutPlanAssignment,
@@ -63,9 +64,14 @@ class ExerciseListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         candidates, selected_status, selected_confidence_band = self._get_filtered_candidates()
+        recent_decisions = ExerciseCandidateDecision.objects.select_related(
+            "candidate",
+            "decided_by",
+        )[:12]
         context["exercise_form"] = kwargs.get("exercise_form") or ExerciseForm()
         context["exercise_category_choices"] = ExerciseCategory.choices
         context["candidates"] = candidates
+        context["recent_candidate_decisions"] = recent_decisions
         context["selected_candidate_status"] = selected_status
         context["selected_confidence_band"] = selected_confidence_band
         context["candidate_status_options"] = [
@@ -125,6 +131,7 @@ class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
         action = request.POST.get("action", "").strip().lower()
         reason = request.POST.get("reason", "").strip()
         next_url = request.POST.get("next", "").strip()
+        previous_status = candidate.status
 
         action_map = {
             "mark_review": CurationStatus.NEEDS_REVIEW,
@@ -162,6 +169,14 @@ class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
                 "decision_reason",
                 "updated_at",
             ]
+        )
+        ExerciseCandidateDecision.objects.create(
+            candidate=candidate,
+            action=action,
+            from_status=previous_status,
+            to_status=new_status,
+            decided_by=request.user,
+            reason=reason,
         )
         messages.success(request, f"Candidate moved to {new_status}.")
         return redirect(redirect_target)

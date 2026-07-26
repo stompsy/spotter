@@ -3,6 +3,7 @@ from django.contrib import admin
 from .models import (
     Exercise,
     ExerciseCandidate,
+    ExerciseCandidateDecision,
     ExerciseExtractionPage,
     ExerciseExtractionRun,
     ExerciseSource,
@@ -60,6 +61,20 @@ class ExerciseCandidateAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "source__source_type")
     search_fields = ("normalized_name", "raw_name", "source__name")
+
+
+@admin.register(ExerciseCandidateDecision)
+class ExerciseCandidateDecisionAdmin(admin.ModelAdmin):
+    list_display = (
+        "candidate",
+        "action",
+        "from_status",
+        "to_status",
+        "decided_by",
+        "decided_at",
+    )
+    list_filter = ("action", "from_status", "to_status")
+    search_fields = ("candidate__normalized_name", "candidate__raw_name", "reason")
 
 
 @admin.register(ExerciseExtractionRun)

@@ -152,6 +152,40 @@ class ExerciseCandidate(models.Model):
         self.status = new_status
 
 
+class ExerciseCandidateDecision(models.Model):
+    candidate = models.ForeignKey(
+        ExerciseCandidate,
+        on_delete=models.CASCADE,
+        related_name="decisions",
+    )
+    action = models.CharField(max_length=32)
+    from_status = models.CharField(max_length=32, choices=CurationStatus.choices)
+    to_status = models.CharField(max_length=32, choices=CurationStatus.choices)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="exercise_candidate_decisions",
+    )
+    reason = models.TextField(blank=True)
+    decided_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-decided_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"{self.candidate.normalized_name}: {self.from_status} -> {self.to_status}"
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValidationError("Exercise candidate decisions are immutable")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Exercise candidate decisions are immutable")
+
+
 class ExerciseExtractionRun(models.Model):
     source = models.ForeignKey(
         ExerciseSource,
