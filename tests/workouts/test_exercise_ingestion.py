@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.urls import reverse
@@ -18,6 +19,11 @@ from apps.workouts.models import (
     ExtractionPageStatus,
     ExtractionRunStatus,
 )
+
+
+def grant_candidate_review_permission(user) -> None:
+    permission = Permission.objects.get(codename="review_exercisecandidate")
+    user.user_permissions.add(permission)
 
 
 @pytest.mark.django_db
@@ -195,8 +201,8 @@ def test_exercise_candidate_review_action_endpoint_transitions_status(client):
         username="candidate_reviewer",
         email="candidate_reviewer@example.com",
         password="pw",
-        is_staff=True,
     )
+    grant_candidate_review_permission(user)
     source = ExerciseSource.objects.create(
         name="Review source",
         source_type=ExerciseSourceType.DOCUMENT,
@@ -234,8 +240,8 @@ def test_exercise_candidate_review_action_rejects_invalid_transition(client):
         username="candidate_reviewer_invalid",
         email="candidate_reviewer_invalid@example.com",
         password="pw",
-        is_staff=True,
     )
+    grant_candidate_review_permission(user)
     source = ExerciseSource.objects.create(
         name="Invalid transition source",
         source_type=ExerciseSourceType.DOCUMENT,
@@ -266,8 +272,8 @@ def test_exercise_candidate_review_action_publish_rejected_when_source_not_ready
         username="candidate_reviewer_publish_blocked",
         email="candidate_reviewer_publish_blocked@example.com",
         password="pw",
-        is_staff=True,
     )
+    grant_candidate_review_permission(user)
     source = ExerciseSource.objects.create(
         name="Publish blocked source",
         source_type=ExerciseSourceType.DOCUMENT,
@@ -302,8 +308,8 @@ def test_exercise_candidate_review_action_persists_reviewer_metadata(client):
         username="candidate_reviewer_publish_allowed",
         email="candidate_reviewer_publish_allowed@example.com",
         password="pw",
-        is_staff=True,
     )
+    grant_candidate_review_permission(user)
     source = ExerciseSource.objects.create(
         name="Publish allowed source",
         source_type=ExerciseSourceType.DOCUMENT,
@@ -349,8 +355,8 @@ def test_exercise_candidate_review_action_does_not_write_decision_when_transitio
         username="candidate_reviewer_no_decision",
         email="candidate_reviewer_no_decision@example.com",
         password="pw",
-        is_staff=True,
     )
+    grant_candidate_review_permission(user)
     source = ExerciseSource.objects.create(
         name="No decision source",
         source_type=ExerciseSourceType.DOCUMENT,
@@ -411,13 +417,12 @@ def test_exercise_candidate_decision_is_immutable_after_creation():
 
 
 @pytest.mark.django_db
-def test_exercise_candidate_review_action_requires_staff_permissions(client):
+def test_exercise_candidate_review_action_requires_reviewer_permission(client):
     user_model = get_user_model()
     user = user_model.objects.create_user(
         username="candidate_non_reviewer",
         email="candidate_non_reviewer@example.com",
         password="pw",
-        is_staff=False,
     )
     source = ExerciseSource.objects.create(
         name="Staff gate source",

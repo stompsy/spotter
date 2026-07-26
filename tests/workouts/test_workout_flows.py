@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.urls import reverse
 
 from apps.communities.models import Community, CommunityMembership, MembershipRole, MembershipStatus
@@ -320,8 +321,9 @@ def test_review_action_redirects_back_to_filtered_queue(client):
         username="queue_redirect_reviewer",
         email="queue_redirect_reviewer@example.com",
         password="pw",
-        is_staff=True,
     )
+    permission = Permission.objects.get(codename="review_exercisecandidate")
+    user.user_permissions.add(permission)
     source = ExerciseSource.objects.create(
         name="Queue redirect source",
         source_type=ExerciseSourceType.DOCUMENT,

@@ -102,6 +102,9 @@ class ExerciseCandidate(models.Model):
 
     class Meta:
         ordering = ["normalized_name", "id"]
+        permissions = [
+            ("review_exercisecandidate", "Can review exercise candidates"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["source", "normalized_name"],
