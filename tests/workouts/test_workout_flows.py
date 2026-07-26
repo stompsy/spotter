@@ -552,3 +552,150 @@ def test_publish_guardrail_error_message_is_shown_to_reviewer(client):
     content = response.content.decode("utf-8")
     assert "Cannot publish candidate without required attribution and safety metadata" in content
     assert "source_url" in content
+
+
+@pytest.mark.django_db
+def test_exercise_queue_filters_candidates_by_publish_readiness(client):
+    user_model = get_user_model()
+    reviewer = user_model.objects.create_user(
+        username="publish_ready_filter_reviewer",
+        email="publish_ready_filter_reviewer@example.com",
+        password="pw",
+    )
+    source = ExerciseSource.objects.create(
+        name="Publish readiness filter source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/publish-readiness-filter-source.txt",
+        is_approved=True,
+        license_name="CC BY 4.0",
+    )
+    ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Ready Candidate",
+        normalized_name="ready candidate",
+        confidence=0.93,
+        status=CurationStatus.APPROVED,
+        metadata={
+            "source_name": "Publish readiness filter source",
+            "source_url": "https://example.com/ready-candidate",
+            "attribution_text": "Source: Publish readiness filter source",
+            "media_rights_confirmed": True,
+            "content_rewritten": True,
+            "safety_reviewed": True,
+        },
+    )
+    ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Missing Candidate",
+        normalized_name="missing candidate",
+        confidence=0.93,
+        status=CurationStatus.APPROVED,
+        metadata={
+            "source_name": "Publish readiness filter source",
+            "source_url": "",
+            "attribution_text": "Source: Publish readiness filter source",
+            "media_rights_confirmed": True,
+            "content_rewritten": True,
+            "safety_reviewed": True,
+        },
+    )
+
+    client.force_login(reviewer)
+    response = client.get(
+        reverse("workouts:exercises"),
+        {
+            "candidate_status": "approved",
+            "publish_readiness": "ready",
+        },
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "ready candidate" in content
+    assert "missing candidate" not in content
+
+
+@pytest.mark.django_db
+def test_review_action_persists_requirement_confirmation_audit_metadata(client):
+    user_model = get_user_model()
+    reviewer = user_model.objects.create_user(
+        username="confirmation_audit_reviewer",
+        email="confirmation_audit_reviewer@example.com",
+        password="pw",
+    )
+    permission = Permission.objects.get(codename="review_exercisecandidate")
+    reviewer.user_permissions.add(permission)
+
+    source = ExerciseSource.objects.create(
+        name="Audit metadata source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/audit-metadata-source.txt",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Step-Up",
+        normalized_name="step-up",
+        confidence=0.88,
+        status=CurationStatus.NEEDS_REVIEW,
+        metadata={},
+    )
+
+    client.force_login(reviewer)
+    response = client.post(
+        reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id}),
+        {
+            "action": "send_back",
+            "source_name": "Audit metadata source",
+            "source_url": "https://example.com/step-up",
+            "attribution_text": "Source: Audit metadata source",
+            "media_rights_confirmed": "on",
+            "content_rewritten": "on",
+            "safety_reviewed": "on",
+        },
+        follow=False,
+    )
+
+    assert response.status_code == 302
+    candidate.refresh_from_db()
+    assert candidate.metadata["media_rights_confirmed_confirmed_by"] == reviewer.username
+    assert candidate.metadata["content_rewritten_confirmed_by"] == reviewer.username
+    assert candidate.metadata["safety_reviewed_confirmed_by"] == reviewer.username
+    assert candidate.metadata["source_name_confirmed_by"] == reviewer.username
+    assert candidate.metadata["source_url_confirmed_by"] == reviewer.username
+    assert candidate.metadata["attribution_text_confirmed_by"] == reviewer.username
+    assert candidate.metadata["media_rights_confirmed_confirmed_at"]
+    assert candidate.metadata["source_name_confirmed_at"]
+
+
+@pytest.mark.django_db
+def test_reviewer_queue_displays_policy_help_panel(client):
+    user_model = get_user_model()
+    reviewer = user_model.objects.create_user(
+        username="policy_help_reviewer",
+        email="policy_help_reviewer@example.com",
+        password="pw",
+    )
+    permission = Permission.objects.get(codename="review_exercisecandidate")
+    reviewer.user_permissions.add(permission)
+
+    source = ExerciseSource.objects.create(
+        name="Policy help source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/policy-help-source.txt",
+    )
+    ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Lateral Lunge",
+        normalized_name="lateral lunge",
+        confidence=0.72,
+        status=CurationStatus.NEEDS_REVIEW,
+        metadata={},
+    )
+
+    client.force_login(reviewer)
+    response = client.get(reverse("workouts:exercises"))
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Policy Help" in content
+    assert "Content policy source: docs/content-policy.md" in content
