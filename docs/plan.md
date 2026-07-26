@@ -43,6 +43,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 13 merged: admin form-level publish validation and reviewer guidance help text for required metadata.
 - Slice 14 merged: structured metadata helper fields in admin for publish requirements with form round-trip tests.
 - Slice 15 merged: in-app candidate review metadata helper parity with structured field persistence and coverage tests.
+- Slice 16 merged: reviewer guardrail feedback with inline publish requirement gaps and specific publish error messaging.
 
 ## Phased roadmap
 
