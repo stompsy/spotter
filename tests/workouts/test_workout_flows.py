@@ -1,6 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
@@ -17,6 +18,7 @@ from apps.workouts.models import (
     ExerciseMovementType,
     ExerciseSource,
     ExerciseSourceType,
+    WorkoutChallengeDay,
     WorkoutPlan,
     WorkoutPlanAssignment,
     WorkoutPlanItem,
@@ -106,6 +108,120 @@ def test_challenge_plan_requires_duration_and_focus(client):
     content = response.content.decode("utf-8")
     assert "Challenge duration is required for challenge plans." in content
     assert "Challenge focus area is required for challenge plans." in content
+
+
+@pytest.mark.django_db
+def test_challenge_day_can_be_created_for_challenge_plan():
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="challenge_day_owner",
+        email="challenge_day_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Challenge Day Plan",
+        slug="challenge-day-plan",
+        created_by=user,
+        plan_type="challenge",
+        duration_band="medium",
+        challenge_duration_days=21,
+        challenge_focus_area="Core",
+    )
+
+    day = WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=1,
+        title="Foundation",
+        focus_area="Core",
+        target_duration_minutes=20,
+    )
+
+    assert day.plan_id == plan.id
+    assert day.day_number == 1
+
+
+@pytest.mark.django_db
+def test_challenge_day_rejects_non_challenge_plan():
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="non_challenge_day_owner",
+        email="non_challenge_day_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Single Session Plan",
+        slug="single-session-plan",
+        created_by=user,
+        plan_type="single_session",
+        duration_band="short",
+    )
+
+    with pytest.raises(ValidationError, match="Challenge days can only be added"):
+        WorkoutChallengeDay.objects.create(
+            plan=plan,
+            day_number=1,
+            title="Invalid day",
+        )
+
+
+@pytest.mark.django_db
+def test_challenge_day_rejects_day_number_beyond_challenge_duration():
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="duration_limit_owner",
+        email="duration_limit_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Two Day Challenge",
+        slug="two-day-challenge",
+        created_by=user,
+        plan_type="challenge",
+        duration_band="short",
+        challenge_duration_days=2,
+        challenge_focus_area="Lower body",
+    )
+
+    with pytest.raises(ValidationError, match="cannot exceed the plan challenge duration"):
+        WorkoutChallengeDay.objects.create(
+            plan=plan,
+            day_number=3,
+            title="Too far",
+        )
+
+
+@pytest.mark.django_db
+def test_detail_view_shows_challenge_days_section(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="challenge_day_view_owner",
+        email="challenge_day_view_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Visibility Challenge",
+        slug="visibility-challenge",
+        created_by=user,
+        plan_type="challenge",
+        duration_band="medium",
+        challenge_duration_days=14,
+        challenge_focus_area="Mobility",
+    )
+    WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=1,
+        title="Start Strong",
+        focus_area="Mobility",
+        target_duration_minutes=15,
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("workouts:detail", kwargs={"slug": plan.slug}))
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Challenge days" in content
+    assert "Day 1: Start Strong" in content
 
 
 @pytest.mark.django_db

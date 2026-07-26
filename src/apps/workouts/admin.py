@@ -10,6 +10,7 @@ from .models import (
     ExerciseExtractionRun,
     ExerciseMedia,
     ExerciseSource,
+    WorkoutChallengeDay,
     WorkoutPlan,
     WorkoutPlanAssignment,
     WorkoutPlanItem,
@@ -120,6 +121,11 @@ class WorkoutPlanItemInline(admin.TabularInline):
     extra = 0
 
 
+class WorkoutChallengeDayInline(admin.TabularInline):
+    model = WorkoutChallengeDay
+    extra = 0
+
+
 @admin.register(WorkoutPlan)
 class WorkoutPlanAdmin(admin.ModelAdmin):
     list_display = (
@@ -135,7 +141,20 @@ class WorkoutPlanAdmin(admin.ModelAdmin):
     )
     list_filter = ("plan_type", "duration_band", "is_template", "is_published")
     search_fields = ("name", "slug", "community__name", "created_by__username")
-    inlines = [WorkoutPlanItemInline]
+    inlines = [WorkoutChallengeDayInline, WorkoutPlanItemInline]
+
+
+@admin.register(WorkoutChallengeDay)
+class WorkoutChallengeDayAdmin(admin.ModelAdmin):
+    list_display = (
+        "plan",
+        "day_number",
+        "title",
+        "focus_area",
+        "target_duration_minutes",
+    )
+    list_filter = ("plan__plan_type",)
+    search_fields = ("plan__name", "title", "focus_area", "notes")
 
 
 @admin.register(WorkoutPlanAssignment)

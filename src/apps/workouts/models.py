@@ -439,8 +439,56 @@ class WorkoutPlan(models.Model):
         return self.name
 
 
+class WorkoutChallengeDay(models.Model):
+    plan = models.ForeignKey(
+        WorkoutPlan,
+        on_delete=models.CASCADE,
+        related_name="challenge_days",
+    )
+    day_number = models.PositiveSmallIntegerField()
+    title = models.CharField(max_length=120, blank=True)
+    focus_area = models.CharField(max_length=120, blank=True)
+    target_duration_minutes = models.PositiveSmallIntegerField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["day_number", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["plan", "day_number"],
+                name="unique_challenge_day_number_per_plan",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.plan.name} day {self.day_number}"
+
+    def clean(self):
+        if self.plan.plan_type != WorkoutPlanType.CHALLENGE:
+            raise ValidationError("Challenge days can only be added to challenge plans.")
+
+        if (
+            self.plan.challenge_duration_days
+            and self.day_number > self.plan.challenge_duration_days
+        ):
+            raise ValidationError(
+                "Challenge day number cannot exceed the plan challenge duration days."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
 class WorkoutPlanItem(models.Model):
     plan = models.ForeignKey(WorkoutPlan, on_delete=models.CASCADE, related_name="items")
+    challenge_day = models.ForeignKey(
+        WorkoutChallengeDay,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="items",
+    )
     exercise = models.ForeignKey(Exercise, on_delete=models.PROTECT, related_name="plan_items")
     order = models.PositiveIntegerField(default=0)
     repetitions = models.CharField(max_length=100, blank=True)
@@ -455,6 +503,14 @@ class WorkoutPlanItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.plan} - {self.exercise}"
+
+    def clean(self):
+        if self.challenge_day and self.challenge_day.plan_id != self.plan_id:
+            raise ValidationError("Challenge day must belong to the same workout plan.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
 
 class WorkoutPlanAssignment(models.Model):
