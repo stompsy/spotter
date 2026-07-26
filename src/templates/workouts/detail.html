@@ -88,7 +88,7 @@
         {% if challenge_days %}
           <ul class="mt-4 space-y-2">
             {% for day in challenge_days %}
-              <li class="rounded-xl border border-white/10 bg-black/20 p-3">
+              <li class="rounded-xl border border-white/10 bg-black/20 p-3" id="challenge-day-{{ day.id }}">
                 <p class="text-sm font-semibold text-zinc-100">Day {{ day.day_number }}{% if day.title %}: {{ day.title }}{% endif %}</p>
                 <p class="mt-1 text-xs text-zinc-400">
                   {% if day.focus_area %}Focus: {{ day.focus_area }}{% endif %}

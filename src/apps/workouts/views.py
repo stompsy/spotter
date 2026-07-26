@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -9,6 +10,7 @@ from django.db import transaction
 from django.db.models import Case, Count, IntegerField, Q, Sum, Value, When
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
@@ -600,6 +602,8 @@ class WorkoutPlanCalendarView(LoginRequiredMixin, DetailView):
             window_end=window_end,
             max_entries=1000,
         )
+        for entry in calendar_entries:
+            _attach_calendar_entry_links(self.object, entry)
 
         entries_by_date: dict[date, list[dict[str, object]]] = {}
         for entry in calendar_entries:
@@ -1503,6 +1507,31 @@ def _build_schedule_entries_for_range(
         )
     )
     return entries[:max_entries]
+
+
+def _attach_calendar_entry_links(plan: WorkoutPlan, entry: dict[str, object]) -> None:
+    plan_detail_url = reverse("workouts:detail", kwargs={"slug": plan.slug})
+    logs_query = urlencode(
+        {
+            "plan": str(plan.id),
+            "days": "all",
+        }
+    )
+
+    entry["workout_url"] = plan_detail_url
+    entry["logs_url"] = f"{reverse('progress:logs')}?{logs_query}"
+    entry["notes_url"] = None
+    entry["challenge_progress_url"] = None
+
+    challenge_day = entry["challenge_day"]
+    if challenge_day is None:
+        return
+
+    challenge_anchor = f"challenge-day-{challenge_day.id}"
+    challenge_day_url = f"{plan_detail_url}#{challenge_anchor}"
+    entry["challenge_progress_url"] = challenge_day_url
+    if challenge_day.notes.strip():
+        entry["notes_url"] = challenge_day_url
 
 
 def _build_schedule_preview_entries(plan: WorkoutPlan, user) -> list[dict[str, object]]:
