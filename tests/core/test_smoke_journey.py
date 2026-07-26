@@ -16,7 +16,28 @@ from apps.workouts.models import WorkoutPlan, WorkoutPlanAssignment
 
 
 @pytest.mark.django_db
-def test_smoke_signup_join_review_notifications_and_workout_logging(client):
+def test_smoke_signup_flow_creates_account(client):
+    signup_page = client.get(reverse("account_signup"))
+    assert signup_page.status_code == 200
+
+    signup_response = client.post(
+        reverse("account_signup"),
+        {
+            "username": "smoke_signup",
+            "email": "smoke_signup@example.com",
+            "password1": "SmoketestPass123!",
+            "password2": "SmoketestPass123!",
+        },
+    )
+    assert signup_response.status_code == 302
+
+    user_model = get_user_model()
+    created = user_model.objects.get(username="smoke_signup")
+    assert created.email == "smoke_signup@example.com"
+
+
+@pytest.fixture
+def smoke_context():
     user_model = get_user_model()
 
     owner = user_model.objects.create_user(
@@ -29,22 +50,11 @@ def test_smoke_signup_join_review_notifications_and_workout_logging(client):
         email="smoke_mod@example.com",
         password="pw",
     )
-
-    signup_page = client.get(reverse("account_signup"))
-    assert signup_page.status_code == 200
-
-    signup_response = client.post(
-        reverse("account_signup"),
-        {
-            "username": "smoke_requester",
-            "email": "smoke_requester@example.com",
-            "password1": "SmoketestPass123!",
-            "password2": "SmoketestPass123!",
-        },
+    requester = user_model.objects.create_user(
+        username="smoke_requester",
+        email="smoke_requester@example.com",
+        password="pw",
     )
-    assert signup_response.status_code == 302
-
-    requester = user_model.objects.get(username="smoke_requester")
     rejected_requester = user_model.objects.create_user(
         username="smoke_reject",
         email="smoke_reject@example.com",
@@ -68,6 +78,22 @@ def test_smoke_signup_join_review_notifications_and_workout_logging(client):
         role=MembershipRole.MODERATOR,
         status=MembershipStatus.ACTIVE,
     )
+
+    return {
+        "owner": owner,
+        "moderator": moderator,
+        "requester": requester,
+        "rejected_requester": rejected_requester,
+        "community": community,
+    }
+
+
+@pytest.mark.django_db
+def test_smoke_community_join_review_flow(smoke_context, client):
+    community = smoke_context["community"]
+    moderator = smoke_context["moderator"]
+    requester = smoke_context["requester"]
+    rejected_requester = smoke_context["rejected_requester"]
 
     client.force_login(requester)
     join_response = client.post(
@@ -123,6 +149,18 @@ def test_smoke_signup_join_review_notifications_and_workout_logging(client):
     )
     assert decision_events.count() == 2
 
+
+@pytest.mark.django_db
+def test_smoke_notifications_flow_marks_inbox_read(smoke_context, client):
+    requester = smoke_context["requester"]
+
+    NotificationEvent.objects.create(
+        recipient=requester,
+        notification_type=NotificationType.JOIN_REQUEST,
+        subject="Smoke notification",
+        body="Smoke body",
+    )
+
     client.force_login(requester)
     inbox_response = client.get(reverse("notifications:inbox"))
     assert inbox_response.status_code == 200
@@ -131,6 +169,13 @@ def test_smoke_signup_join_review_notifications_and_workout_logging(client):
     mark_all_response = client.post(reverse("notifications:mark_all_read"))
     assert mark_all_response.status_code == 302
     assert NotificationEvent.objects.filter(recipient=requester, read_at__isnull=True).count() == 0
+
+
+@pytest.mark.django_db
+def test_smoke_workout_assignment_and_logging_persists(smoke_context, client):
+    owner = smoke_context["owner"]
+    requester = smoke_context["requester"]
+    community = smoke_context["community"]
 
     client.force_login(owner)
     create_plan_response = client.post(

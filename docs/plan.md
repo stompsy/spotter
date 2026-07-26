@@ -29,6 +29,8 @@ The original plan lived in session memory and was not visible in the workspace t
 - Lint and Django checks are integrated into regular workflow.
 - A first end-to-end smoke journey test now exercises signup, join request review (approve/reject), notifications read flow, and workout logging persistence.
 - A deployment runbook draft now documents migrate, ensure_superuser, seed policy, health checks, and reminder scheduling steps.
+- Smoke coverage is now split into targeted scenarios (signup, community review, notifications, workout assignment/logging) for clearer CI diagnostics.
+- Deployment runbook now includes platform-specific examples for Railway, Render, and GitHub Actions based deployments.
 
 ## Remaining high-value work
 

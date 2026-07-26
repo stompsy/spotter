@@ -82,6 +82,49 @@ If your platform cannot satisfy all `--deploy` checks yet, also run:
 python manage.py check
 ```
 
+## Platform Examples
+
+### Railway
+
+Use a release command sequence in project settings:
+
+```bash
+python manage.py migrate --noinput && python manage.py ensure_superuser && python manage.py check --deploy
+```
+
+Recommended service variables:
+
+- `DJANGO_ALLOWED_HOSTS` should include the Railway service domain.
+- `DJANGO_CSRF_TRUSTED_ORIGINS` should include `https://<your-domain>`.
+
+### Render
+
+Set the web service start command to your WSGI server, and use pre-deploy command:
+
+```bash
+python manage.py migrate --noinput && python manage.py ensure_superuser && python manage.py check --deploy
+```
+
+For background reminders, configure a separate cron job service:
+
+```bash
+python manage.py send_reminders
+```
+
+### GitHub Actions + Self-Hosted/VM Deploy
+
+Use a deploy job step before restart:
+
+```yaml
+- name: Migrate and health check
+  run: |
+    python manage.py migrate --noinput
+    python manage.py ensure_superuser
+    python manage.py check --deploy
+```
+
+If your deployment uses PM2/systemd, restart only after these commands succeed.
+
 ## Reminder Delivery Schedule
 
 Set a scheduler/cron entry to dispatch reminders:
