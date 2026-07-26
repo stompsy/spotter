@@ -64,6 +64,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 34 merged: Phase 4 schedule layer preview sourced from assignments and challenge-day sequencing with detail-view visibility and coverage tests.
 - Slice 35 merged: Phase 4 calendar views (daily, rolling 3-day, weekly, monthly, yearly) backed by assignment/challenge schedule expansion and view coverage tests.
 - Slice 36 merged: Phase 4 day-state classification in calendar views (planned, partial, complete, missed, rest) with challenge completion-aware state logic and coverage tests.
+- Slice 37 merged: Phase 4 calendar-cell destination linking for workouts, logs, notes, and challenge-progress anchors with integration coverage tests.
 
 ## Phased roadmap
 
@@ -121,7 +122,7 @@ Progress notation used below:
 - monthly
 - yearly
 3. [DONE] ~~Add day states: planned, partial, complete, missed, rest.~~
-4. [PENDING] Link calendar cells to workouts, logs, notes, and challenge progress.
+4. [DONE] ~~Link calendar cells to workouts, logs, notes, and challenge progress.~~
 5. [PENDING] Add coach/community overlays where permissions allow.
 
 ### Phase 5 - Progress Analytics and Insight Safety
