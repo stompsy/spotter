@@ -1,6 +1,9 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
+from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.communities.models import (
     Community,
@@ -10,7 +13,11 @@ from apps.communities.models import (
     MembershipRole,
     MembershipStatus,
 )
-from apps.notifications.models import NotificationEvent, NotificationType
+from apps.notifications.models import (
+    DeliveryStatus,
+    NotificationEvent,
+    NotificationType,
+)
 from apps.progress.models import WorkoutLog
 from apps.workouts.models import WorkoutPlan, WorkoutPlanAssignment
 
@@ -34,6 +41,29 @@ def test_smoke_signup_flow_creates_account(client):
     user_model = get_user_model()
     created = user_model.objects.get(username="smoke_signup")
     assert created.email == "smoke_signup@example.com"
+
+
+@pytest.mark.django_db
+def test_smoke_login_flow_can_access_protected_notifications(client):
+    user_model = get_user_model()
+    password = "SmokeloginPass123!"
+    user = user_model.objects.create_user(
+        username="smoke_login",
+        email="smoke_login@example.com",
+        password=password,
+    )
+
+    login_response = client.post(
+        reverse("account_login"),
+        {
+            "login": user.username,
+            "password": password,
+        },
+    )
+    assert login_response.status_code == 302
+
+    inbox_response = client.get(reverse("notifications:inbox"))
+    assert inbox_response.status_code == 200
 
 
 @pytest.fixture
@@ -215,3 +245,41 @@ def test_smoke_workout_assignment_and_logging_persists(smoke_context, client):
         recovery_markers={"sleep": "good", "soreness": "low"},
     )
     assert WorkoutLog.objects.filter(id=log.id).exists()
+
+
+@pytest.mark.django_db
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+def test_smoke_reminder_dispatch_dry_run_and_delivery(client):
+    user_model = get_user_model()
+    coach = user_model.objects.create_user(
+        username="smoke_reminder_coach",
+        email="smoke_reminder_coach@example.com",
+        password="pw",
+    )
+    athlete = user_model.objects.create_user(
+        username="smoke_reminder_athlete",
+        email="smoke_reminder_athlete@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Smoke Reminder Plan",
+        slug="smoke-reminder-plan",
+        created_by=coach,
+        is_published=True,
+    )
+    WorkoutPlanAssignment.objects.create(
+        plan=plan,
+        assigned_to=athlete,
+        starts_on=timezone.localdate(),
+        is_active=True,
+    )
+
+    call_command("send_reminders", dry_run=True)
+    assert NotificationEvent.objects.filter(
+        notification_type=NotificationType.REMINDER
+    ).count() == 0
+
+    call_command("send_reminders")
+    event = NotificationEvent.objects.get(notification_type=NotificationType.REMINDER)
+    assert event.delivery_status == DeliveryStatus.SENT
+    assert event.sent_at is not None

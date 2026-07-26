@@ -31,12 +31,14 @@ The original plan lived in session memory and was not visible in the workspace t
 - A deployment runbook draft now documents migrate, ensure_superuser, seed policy, health checks, and reminder scheduling steps.
 - Smoke coverage is now split into targeted scenarios (signup, community review, notifications, workout assignment/logging) for clearer CI diagnostics.
 - Deployment runbook now includes platform-specific examples for Railway, Render, and GitHub Actions based deployments.
+- Smoke coverage now includes login-to-protected-page verification and reminder dispatch dry-run plus delivery execution.
+- Makefile release wrappers now mirror the deployment runbook sequence and reminder operational commands.
 
 ## Remaining high-value work
 
-### 1. End-to-end hardening
-- Expand smoke coverage and split into targeted scenarios as needed for CI diagnostics.
-- Keep deployment runbook aligned with platform-specific operational constraints.
+### 1. Next product increment selection
+- Prioritize the next user-visible capability after MVP hardening (for example: workout logging UI flows or progress dashboards).
+- Define acceptance tests first for the selected increment.
 
 ## Suggested next implementation step
-Implement end-to-end hardening next with smoke tests and a deployment runbook so core flows remain stable in CI and release operations.
+Select the next product increment and start with acceptance-test scaffolding before implementing view/model changes.

@@ -41,16 +41,36 @@ Run these steps in order on each deployment:
 
 ## Commands
 
+Preferred wrapper targets from `Makefile`:
+
+```bash
+make deploy-release
+```
+
+This runs migrate, ensure-superuser, and deploy health checks in order.
+
 ### 1) Migrate
 
 ```bash
 python manage.py migrate --noinput
 ```
 
+or:
+
+```bash
+make deploy-migrate
+```
+
 ### 2) Ensure Superuser
 
 ```bash
 python manage.py ensure_superuser
+```
+
+or:
+
+```bash
+make deploy-ensure-superuser
 ```
 
 Expected behavior:
@@ -80,6 +100,12 @@ If your platform cannot satisfy all `--deploy` checks yet, also run:
 
 ```bash
 python manage.py check
+```
+
+or combined fallback:
+
+```bash
+make deploy-check
 ```
 
 ## Platform Examples
@@ -133,6 +159,12 @@ Set a scheduler/cron entry to dispatch reminders:
 python manage.py send_reminders
 ```
 
+or:
+
+```bash
+make reminders-run
+```
+
 Optional lookahead window:
 
 ```bash
@@ -143,6 +175,12 @@ Dry-run validation:
 
 ```bash
 python manage.py send_reminders --dry-run
+```
+
+or:
+
+```bash
+make reminders-dry-run
 ```
 
 ## Rollback Notes
