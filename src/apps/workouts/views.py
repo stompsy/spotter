@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -33,9 +34,31 @@ from .models import (
     ExerciseEquipmentRequirement,
     ExerciseMediaType,
     ExerciseMovementType,
+    WorkoutChallengeDay,
     WorkoutPlan,
     WorkoutPlanAssignment,
+    WorkoutPlanDurationBand,
+    WorkoutPlanItem,
+    WorkoutPlanType,
 )
+
+CHALLENGE_PRESET_OPTIONS = [
+    {
+        "key": "abs_30_day",
+        "label": "30-Day Core Challenge",
+        "description": (
+            "Internally authored core progression with daily focus and copy-safe notes."
+        ),
+    },
+    {
+        "key": "lunge_30_day",
+        "label": "30-Day Lunge Challenge",
+        "description": (
+            "Internally authored lower-body progression with daily lunge practice "
+            "and recovery pacing."
+        ),
+    },
+]
 
 
 class ExerciseListView(LoginRequiredMixin, ListView):
@@ -387,9 +410,21 @@ class WorkoutPlanListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["plan_form"] = kwargs.get("plan_form") or WorkoutPlanForm(user=self.request.user)
+        context["challenge_preset_options"] = CHALLENGE_PRESET_OPTIONS
         return context
 
     def post(self, request: HttpRequest) -> HttpResponse:
+        preset_key = request.POST.get("preset_key", "").strip().lower()
+        if preset_key:
+            try:
+                plan = _create_challenge_preset_plan(request.user, preset_key)
+            except ValueError:
+                messages.error(request, "Unknown preset selection.")
+                return redirect("workouts:list")
+
+            messages.success(request, f"Preset created: {plan.name}.")
+            return redirect("workouts:detail", slug=plan.slug)
+
         form = WorkoutPlanForm(request.POST, user=request.user)
         if form.is_valid():
             plan = form.save(commit=False)
@@ -606,6 +641,272 @@ def _build_unique_plan_slug(name: str) -> str:
         suffix += 1
         slug = f"{base_slug}-{suffix}"
     return slug
+
+
+def _create_challenge_preset_plan(user, preset_key: str) -> WorkoutPlan:
+    preset_builders = {
+        "abs_30_day": _build_core_challenge_preset,
+        "lunge_30_day": _build_lunge_challenge_preset,
+    }
+    builder = preset_builders.get(preset_key)
+    if builder is None:
+        raise ValueError("Unknown preset")
+
+    with transaction.atomic():
+        return builder(user)
+
+
+def _build_core_challenge_preset(user) -> WorkoutPlan:
+    exercises = [
+        _get_or_create_preset_exercise(
+            name="Hollow Hold",
+            category=ExerciseCategory.CORE_STABILITY,
+            movement_type=ExerciseMovementType.CORE,
+            primary_body_area=ExerciseBodyArea.CORE,
+            difficulty_level=ExerciseDifficultyLevel.BEGINNER,
+            equipment_requirement=ExerciseEquipmentRequirement.NONE,
+            duration_fit=ExerciseDurationFit.SHORT,
+            description="Braced hold for trunk stiffness and anterior core control.",
+            instructions="Brace, tuck the ribs down, and hold a steady breathing rhythm.",
+            safety_notes="Stop if the lower back cannot stay gently grounded.",
+            coaching_cues="Exhale, brace, and keep tension even front to back.",
+        ),
+        _get_or_create_preset_exercise(
+            name="Dead Bug",
+            category=ExerciseCategory.CORE_STABILITY,
+            movement_type=ExerciseMovementType.CORE,
+            primary_body_area=ExerciseBodyArea.CORE,
+            difficulty_level=ExerciseDifficultyLevel.BEGINNER,
+            equipment_requirement=ExerciseEquipmentRequirement.NONE,
+            duration_fit=ExerciseDurationFit.SHORT,
+            description="Alternating limb pattern for core coordination and control.",
+            instructions="Move slowly and keep the trunk quiet while each limb reaches.",
+            safety_notes="Reduce range if the ribs flare or the lower back lifts.",
+            coaching_cues="Reach long, breathe out, and move one side at a time.",
+        ),
+        _get_or_create_preset_exercise(
+            name="Forearm Plank",
+            category=ExerciseCategory.CORE_STABILITY,
+            movement_type=ExerciseMovementType.CORE,
+            primary_body_area=ExerciseBodyArea.CORE,
+            difficulty_level=ExerciseDifficultyLevel.BEGINNER,
+            equipment_requirement=ExerciseEquipmentRequirement.NONE,
+            duration_fit=ExerciseDurationFit.SHORT,
+            description="Front plank variation for isometric trunk endurance.",
+            instructions="Stack shoulders over elbows and keep the pelvis level.",
+            safety_notes="End the set if the hips sag or the shoulders shrug upward.",
+            coaching_cues="Squeeze glutes, brace the stomach, and push the floor away.",
+        ),
+        _get_or_create_preset_exercise(
+            name="Reverse Crunch",
+            category=ExerciseCategory.CORE_STABILITY,
+            movement_type=ExerciseMovementType.CORE,
+            primary_body_area=ExerciseBodyArea.CORE,
+            difficulty_level=ExerciseDifficultyLevel.BEGINNER,
+            equipment_requirement=ExerciseEquipmentRequirement.NONE,
+            duration_fit=ExerciseDurationFit.SHORT,
+            description="Curling trunk pattern for lower-abdominal control.",
+            instructions="Tuck the pelvis first and move with deliberate tempo.",
+            safety_notes="Keep the motion smooth and avoid swinging the legs.",
+            coaching_cues="Curl slowly, pause briefly, and lower with control.",
+        ),
+    ]
+    plan = WorkoutPlan.objects.create(
+        name="30-Day Core Challenge",
+        slug=_build_unique_plan_slug("30-Day Core Challenge"),
+        description=(
+            "Copy-safe internal preset that builds core control across 30 days with "
+            "steady progression, light recovery, and repeatable practice."
+        ),
+        created_by=user,
+        plan_type=WorkoutPlanType.CHALLENGE,
+        duration_band=WorkoutPlanDurationBand.SHORT,
+        challenge_duration_days=30,
+        challenge_focus_area="Core",
+        is_template=True,
+        is_published=False,
+    )
+    _populate_challenge_plan(
+        plan,
+        exercises,
+        focus_area="Core",
+        notes_by_stage={
+            "foundation": "Prioritize breathing, trunk stiffness, and repeatable positions.",
+            "build": "Add controlled volume without sacrificing bracing quality.",
+            "finish": "Maintain crisp technique while the daily demand rises slightly.",
+        },
+    )
+    return plan
+
+
+def _build_lunge_challenge_preset(user) -> WorkoutPlan:
+    exercises = [
+        _get_or_create_preset_exercise(
+            name="Bodyweight Lunge",
+            category=ExerciseCategory.STRENGTH,
+            movement_type=ExerciseMovementType.LUNGE,
+            primary_body_area=ExerciseBodyArea.LOWER_BODY,
+            difficulty_level=ExerciseDifficultyLevel.BEGINNER,
+            equipment_requirement=ExerciseEquipmentRequirement.NONE,
+            duration_fit=ExerciseDurationFit.SHORT,
+            description="Foundational lunge pattern for lower-body control and balance.",
+            instructions="Step with control, drop straight down, and stand smoothly.",
+            safety_notes="Keep the front foot planted and shorten range if balance slips.",
+            coaching_cues="Tall chest, quiet knee, and push through the whole foot.",
+        ),
+        _get_or_create_preset_exercise(
+            name="Reverse Lunge",
+            category=ExerciseCategory.STRENGTH,
+            movement_type=ExerciseMovementType.LUNGE,
+            primary_body_area=ExerciseBodyArea.LOWER_BODY,
+            difficulty_level=ExerciseDifficultyLevel.BEGINNER,
+            equipment_requirement=ExerciseEquipmentRequirement.NONE,
+            duration_fit=ExerciseDurationFit.SHORT,
+            description="Rear-stepping lunge variation for controlled deceleration.",
+            instructions="Step back softly and keep the front leg stable through the rep.",
+            safety_notes="Use a smaller step if the hips twist or the front heel lifts.",
+            coaching_cues="Reach back quietly, stay stacked, and drive up with intent.",
+        ),
+        _get_or_create_preset_exercise(
+            name="Split Squat Hold",
+            category=ExerciseCategory.STRENGTH,
+            movement_type=ExerciseMovementType.LUNGE,
+            primary_body_area=ExerciseBodyArea.LOWER_BODY,
+            difficulty_level=ExerciseDifficultyLevel.INTERMEDIATE,
+            equipment_requirement=ExerciseEquipmentRequirement.NONE,
+            duration_fit=ExerciseDurationFit.SHORT,
+            description="Isometric split-stance hold for balance and positional strength.",
+            instructions=(
+                "Sink to a strong split stance and hold with even pressure through both legs."
+            ),
+            safety_notes="Come higher if the back knee or front foot loses stable alignment.",
+            coaching_cues="Stay tall, brace the trunk, and keep both legs active.",
+        ),
+        _get_or_create_preset_exercise(
+            name="Walking Lunge",
+            category=ExerciseCategory.CONDITIONING,
+            movement_type=ExerciseMovementType.LUNGE,
+            primary_body_area=ExerciseBodyArea.LOWER_BODY,
+            difficulty_level=ExerciseDifficultyLevel.INTERMEDIATE,
+            equipment_requirement=ExerciseEquipmentRequirement.MINIMAL,
+            duration_fit=ExerciseDurationFit.MEDIUM,
+            description="Continuous lunge pattern for coordination, posture, and stamina.",
+            instructions="Move forward under control and reset balance before each next step.",
+            safety_notes="Use shorter steps if posture collapses or the front knee drifts.",
+            coaching_cues="Step long enough to stay stable and finish tall each rep.",
+        ),
+    ]
+    plan = WorkoutPlan.objects.create(
+        name="30-Day Lunge Challenge",
+        slug=_build_unique_plan_slug("30-Day Lunge Challenge"),
+        description=(
+            "Copy-safe internal preset that builds lunge capacity, balance, and lower-body "
+            "tolerance across 30 days with repeatable technique cues."
+        ),
+        created_by=user,
+        plan_type=WorkoutPlanType.CHALLENGE,
+        duration_band=WorkoutPlanDurationBand.SHORT,
+        challenge_duration_days=30,
+        challenge_focus_area="Lower body",
+        is_template=True,
+        is_published=False,
+    )
+    _populate_challenge_plan(
+        plan,
+        exercises,
+        focus_area="Lower body",
+        notes_by_stage={
+            "foundation": "Focus on stance, balance, and smooth vertical control.",
+            "build": "Increase repetition tolerance while keeping each rep symmetrical.",
+            "finish": "Keep posture crisp as the daily lower-body workload gradually rises.",
+        },
+    )
+    return plan
+
+
+def _populate_challenge_plan(
+    plan: WorkoutPlan,
+    exercises: list[Exercise],
+    focus_area: str,
+    notes_by_stage: dict[str, str],
+) -> None:
+    for day_number in range(1, 31):
+        if day_number <= 10:
+            stage = "foundation"
+            title = f"Foundation {day_number}"
+            target_duration = 8
+        elif day_number <= 20:
+            stage = "build"
+            title = f"Build {day_number - 10}"
+            target_duration = 10
+        else:
+            stage = "finish"
+            title = f"Finish {day_number - 20}"
+            target_duration = 12
+
+        day = WorkoutChallengeDay.objects.create(
+            plan=plan,
+            day_number=day_number,
+            title=title,
+            focus_area=focus_area,
+            target_duration_minutes=target_duration,
+            notes=notes_by_stage[stage],
+        )
+        exercise = exercises[(day_number - 1) % len(exercises)]
+        WorkoutPlanItem.objects.create(
+            plan=plan,
+            challenge_day=day,
+            exercise=exercise,
+            order=day_number,
+            repetitions=_build_preset_repetition_text(day_number, exercise.name),
+            notes=f"Day {day_number} priority: smooth, repeatable {focus_area.lower()} work.",
+        )
+
+
+def _build_preset_repetition_text(day_number: int, exercise_name: str) -> str:
+    if "Hold" in exercise_name or "Plank" in exercise_name:
+        seconds = 20 + ((day_number - 1) // 5) * 5
+        return f"3 x {seconds}s"
+
+    reps = 8 + ((day_number - 1) // 5) * 2
+    if "Dead Bug" in exercise_name or "Lunge" in exercise_name or "Split Squat" in exercise_name:
+        return f"3 x {reps} each side"
+    return f"3 x {reps}"
+
+
+def _get_or_create_preset_exercise(
+    *,
+    name: str,
+    category: str,
+    movement_type: str,
+    primary_body_area: str,
+    difficulty_level: str,
+    equipment_requirement: str,
+    duration_fit: str,
+    description: str,
+    instructions: str,
+    safety_notes: str,
+    coaching_cues: str,
+) -> Exercise:
+    slug = slugify(name) or "exercise"
+    exercise, _ = Exercise.objects.get_or_create(
+        slug=slug,
+        defaults={
+            "name": name,
+            "category": category,
+            "movement_type": movement_type,
+            "primary_body_area": primary_body_area,
+            "difficulty_level": difficulty_level,
+            "equipment_requirement": equipment_requirement,
+            "duration_fit": duration_fit,
+            "description": description,
+            "instructions": instructions,
+            "safety_notes": safety_notes,
+            "coaching_cues": coaching_cues,
+            "is_active": True,
+        },
+    )
+    return exercise
 
 
 def _can_manage_plan(user, plan: WorkoutPlan) -> bool:
