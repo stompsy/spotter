@@ -70,6 +70,7 @@ class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
     def post(self, request: HttpRequest, candidate_id: int) -> HttpResponse:
         candidate = get_object_or_404(ExerciseCandidate, id=candidate_id)
         action = request.POST.get("action", "").strip().lower()
+        reason = request.POST.get("reason", "").strip()
 
         action_map = {
             "mark_review": CurationStatus.NEEDS_REVIEW,
@@ -88,7 +89,18 @@ class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
             messages.error(request, "Candidate status transition is not allowed.")
             return redirect("workouts:exercises")
 
-        candidate.save(update_fields=["status", "updated_at"])
+        candidate.reviewed_by = request.user
+        candidate.reviewed_at = timezone.now()
+        candidate.decision_reason = reason
+        candidate.save(
+            update_fields=[
+                "status",
+                "reviewed_by",
+                "reviewed_at",
+                "decision_reason",
+                "updated_at",
+            ]
+        )
         messages.success(request, f"Candidate moved to {new_status}.")
         return redirect("workouts:exercises")
 
