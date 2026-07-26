@@ -23,6 +23,8 @@ The original plan lived in session memory and was not visible in the workspace t
 - Superuser guard command exists for deploy automation.
 - Reminder delivery path is implemented with scheduled dispatch, NotificationEvent generation, email send attempts, and sent/failed delivery status transitions.
 - Reminder dispatch tests cover candidate selection, duplicate prevention, dry-run mode, and delivery status changes.
+- Workout logging UI first slice is implemented with authenticated list/create flow, per-user visibility, and assignment-linked plan selection.
+- Progress routes and templates are connected to primary navigation.
 
 ### In progress quality baseline
 - Focused tests exist for community moderation and notifications inbox/read actions.
@@ -36,9 +38,9 @@ The original plan lived in session memory and was not visible in the workspace t
 
 ## Remaining high-value work
 
-### 1. Next product increment selection
-- Prioritize the next user-visible capability after MVP hardening (for example: workout logging UI flows or progress dashboards).
-- Define acceptance tests first for the selected increment.
+### 1. Progress insights iteration
+- Add lightweight progress summaries (for example: recent logs, average perceived exertion trend, and community participation snapshots).
+- Expand acceptance tests for progress filtering and summary correctness.
 
 ## Suggested next implementation step
-Select the next product increment and start with acceptance-test scaffolding before implementing view/model changes.
+Implement progress insights next with read-only summary cards derived from existing workout logs.

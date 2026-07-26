@@ -7,6 +7,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("communities/", include("apps.communities.urls")),
     path("notifications/", include("apps.notifications.urls")),
+    path("progress/", include("apps.progress.urls")),
     path("workouts/", include("apps.workouts.urls")),
     path("guidance/", include("apps.content.urls")),
     path("", include("apps.core.urls")),

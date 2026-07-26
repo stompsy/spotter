@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Spotter | Progress Logs{% endblock %}
+
+{% block content %}
+  <section class="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+    <article class="rounded-2xl border border-white/10 bg-gradient-to-br from-brand-panel to-brand-panel-soft p-6">
+      <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Progress</p>
+      <h2 class="mt-2 font-display text-4xl font-bold uppercase tracking-wide text-white">Workout Logs</h2>
+      <p class="mt-2 text-sm text-zinc-300">Track effort and notes for completed sessions.</p>
+
+      {% if logs %}
+        <ul class="mt-5 space-y-3">
+          {% for log in logs %}
+            <li class="rounded-xl border border-white/10 bg-black/20 p-4">
+              <p class="text-sm font-semibold text-zinc-100">
+                {% if log.plan %}{{ log.plan.name }}{% else %}Unplanned session{% endif %}
+              </p>
+              <p class="mt-1 text-xs uppercase tracking-wide text-zinc-400">
+                {{ log.completed_at|date:"Y-m-d H:i" }}
+                {% if log.perceived_exertion %} • RPE {{ log.perceived_exertion }}{% endif %}
+              </p>
+              {% if log.notes %}
+                <p class="mt-2 text-sm text-zinc-300">{{ log.notes }}</p>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="mt-4 text-sm text-zinc-300">No logs yet. Add your first session from the form.</p>
+      {% endif %}
+    </article>
+
+    <aside class="rounded-2xl border border-brand-neon/30 bg-brand-neon/10 p-6">
+      <h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-neon">New Log</h3>
+      <form class="mt-4 space-y-3" method="post">
+        {% csrf_token %}
+        {{ log_form.as_p }}
+        <button class="inline-flex rounded-full bg-brand-neon px-4 py-2 text-sm font-bold uppercase tracking-wide text-brand-ink" type="submit">Save log</button>
+      </form>
+    </aside>
+  </section>
+{% endblock %}
