@@ -92,7 +92,11 @@
           {% for item in items %}
             <li class="rounded-xl border border-white/10 bg-black/20 p-3">
               <p class="text-sm font-semibold text-zinc-100">{{ item.order }}. {{ item.exercise.name }}</p>
-              <p class="mt-1 text-xs text-zinc-400">{{ item.repetitions }}{% if item.duration_minutes %} • {{ item.duration_minutes }} min{% endif %}</p>
+              <p class="mt-1 text-xs text-zinc-400">
+                {% if item.challenge_day %}Day {{ item.challenge_day.day_number }}{% if item.challenge_day.title %}: {{ item.challenge_day.title }}{% endif %} • {% endif %}
+                {{ item.repetitions }}{% if item.duration_minutes %} • {{ item.duration_minutes }} min{% endif %}
+              </p>
+              {% if item.notes %}<p class="mt-1 text-xs text-zinc-500">{{ item.notes }}</p>{% endif %}
             </li>
           {% endfor %}
         </ul>

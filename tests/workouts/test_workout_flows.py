@@ -113,6 +113,76 @@ def test_challenge_plan_requires_duration_and_focus(client):
 
 
 @pytest.mark.django_db
+def test_workout_plan_list_displays_challenge_preset_controls(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="preset_view_user",
+        email="preset_view_user@example.com",
+        password="pw",
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("workouts:list"))
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Copy-safe starter challenges" in content
+    assert "30-Day Core Challenge" in content
+    assert "30-Day Lunge Challenge" in content
+
+
+@pytest.mark.django_db
+def test_user_can_create_core_challenge_preset_from_plan_list(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="core_preset_owner",
+        email="core_preset_owner@example.com",
+        password="pw",
+    )
+
+    client.force_login(user)
+    response = client.post(reverse("workouts:list"), {"preset_key": "abs_30_day"})
+
+    assert response.status_code == 302
+    plan = WorkoutPlan.objects.get(name="30-Day Core Challenge")
+    assert plan.created_by_id == user.id
+    assert plan.plan_type == "challenge"
+    assert plan.challenge_duration_days == 30
+    assert plan.challenge_focus_area == "Core"
+    assert plan.is_template is True
+    assert plan.challenge_days.count() == 30
+    assert plan.items.count() == 30
+    assert plan.items.filter(challenge_day__isnull=False).count() == 30
+    assert Exercise.objects.filter(name="Hollow Hold").exists()
+
+
+@pytest.mark.django_db
+def test_user_can_create_lunge_challenge_preset_and_view_day_linked_items(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="lunge_preset_owner",
+        email="lunge_preset_owner@example.com",
+        password="pw",
+    )
+
+    client.force_login(user)
+    create_response = client.post(reverse("workouts:list"), {"preset_key": "lunge_30_day"})
+
+    assert create_response.status_code == 302
+    plan = WorkoutPlan.objects.get(name="30-Day Lunge Challenge")
+    assert plan.challenge_days.count() == 30
+    assert plan.items.count() == 30
+
+    detail_response = client.get(reverse("workouts:detail", kwargs={"slug": plan.slug}))
+
+    assert detail_response.status_code == 200
+    content = detail_response.content.decode("utf-8")
+    assert "Day 1: Foundation 1" in content
+    assert "Bodyweight Lunge" in content
+    assert "Day 1 priority" in content
+
+
+@pytest.mark.django_db
 def test_challenge_day_can_be_created_for_challenge_plan():
     user_model = get_user_model()
     user = user_model.objects.create_user(
