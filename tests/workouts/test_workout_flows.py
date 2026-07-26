@@ -1,9 +1,12 @@
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.communities.models import Community, CommunityMembership, MembershipRole, MembershipStatus
 from apps.workouts.models import (
@@ -1012,6 +1015,99 @@ def test_plan_creator_can_assign_to_community(client):
     assignment = WorkoutPlanAssignment.objects.get(plan=plan)
     assert assignment.assigned_community_id == community.id
     assert assignment.recurs_every_days == 7
+
+
+@pytest.mark.django_db
+def test_detail_view_shows_schedule_preview_for_active_recurring_assignment(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="schedule_preview_owner",
+        email="schedule_preview_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Schedule Preview Plan",
+        slug="schedule-preview-plan",
+        description="",
+        created_by=user,
+    )
+    starts_on = timezone.localdate() + timedelta(days=1)
+    WorkoutPlanAssignment.objects.create(
+        plan=plan,
+        assigned_to=user,
+        starts_on=starts_on,
+        recurs_every_days=7,
+        is_active=True,
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("workouts:detail", kwargs={"slug": plan.slug}))
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Schedule Preview" in content
+    assert starts_on.isoformat() in content
+    assert "Scheduled session" in content
+    assert "every 7 days" in content
+
+
+@pytest.mark.django_db
+def test_challenge_assignment_expands_challenge_days_into_schedule_preview(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="challenge_schedule_owner",
+        email="challenge_schedule_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Challenge Schedule Plan",
+        slug="challenge-schedule-plan",
+        description="",
+        created_by=user,
+        plan_type="challenge",
+        duration_band="short",
+        challenge_duration_days=3,
+        challenge_focus_area="Core",
+    )
+    WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=1,
+        title="Foundation",
+        focus_area="Core",
+        target_duration_minutes=10,
+    )
+    WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=2,
+        title="Build",
+        focus_area="Core",
+        target_duration_minutes=12,
+    )
+    WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=3,
+        title="Finish",
+        focus_area="Core",
+        target_duration_minutes=14,
+    )
+    starts_on = timezone.localdate() + timedelta(days=1)
+    WorkoutPlanAssignment.objects.create(
+        plan=plan,
+        assigned_to=user,
+        starts_on=starts_on,
+        is_active=True,
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("workouts:detail", kwargs={"slug": plan.slug}))
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Schedule Preview" in content
+    assert "Challenge day 1" in content
+    assert "Challenge day 3" in content
+    assert starts_on.isoformat() in content
+    assert (starts_on + timedelta(days=2)).isoformat() in content
 
 
 @pytest.mark.django_db
