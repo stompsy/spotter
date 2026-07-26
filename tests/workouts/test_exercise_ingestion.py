@@ -195,6 +195,7 @@ def test_exercise_candidate_review_action_endpoint_transitions_status(client):
         username="candidate_reviewer",
         email="candidate_reviewer@example.com",
         password="pw",
+        is_staff=True,
     )
     source = ExerciseSource.objects.create(
         name="Review source",
@@ -233,6 +234,7 @@ def test_exercise_candidate_review_action_rejects_invalid_transition(client):
         username="candidate_reviewer_invalid",
         email="candidate_reviewer_invalid@example.com",
         password="pw",
+        is_staff=True,
     )
     source = ExerciseSource.objects.create(
         name="Invalid transition source",
@@ -264,6 +266,7 @@ def test_exercise_candidate_review_action_publish_rejected_when_source_not_ready
         username="candidate_reviewer_publish_blocked",
         email="candidate_reviewer_publish_blocked@example.com",
         password="pw",
+        is_staff=True,
     )
     source = ExerciseSource.objects.create(
         name="Publish blocked source",
@@ -299,6 +302,7 @@ def test_exercise_candidate_review_action_persists_reviewer_metadata(client):
         username="candidate_reviewer_publish_allowed",
         email="candidate_reviewer_publish_allowed@example.com",
         password="pw",
+        is_staff=True,
     )
     source = ExerciseSource.objects.create(
         name="Publish allowed source",
@@ -345,6 +349,7 @@ def test_exercise_candidate_review_action_does_not_write_decision_when_transitio
         username="candidate_reviewer_no_decision",
         email="candidate_reviewer_no_decision@example.com",
         password="pw",
+        is_staff=True,
     )
     source = ExerciseSource.objects.create(
         name="No decision source",
@@ -403,3 +408,36 @@ def test_exercise_candidate_decision_is_immutable_after_creation():
 
     with pytest.raises(ValidationError):
         decision.delete()
+
+
+@pytest.mark.django_db
+def test_exercise_candidate_review_action_requires_staff_permissions(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="candidate_non_reviewer",
+        email="candidate_non_reviewer@example.com",
+        password="pw",
+        is_staff=False,
+    )
+    source = ExerciseSource.objects.create(
+        name="Staff gate source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/staff-gate-source.txt",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Forward Lunges",
+        normalized_name="forward lunge",
+        status=CurationStatus.DRAFT,
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id}),
+        {"action": "mark_review"},
+    )
+
+    assert response.status_code == 404
+    candidate.refresh_from_db()
+    assert candidate.status == CurationStatus.DRAFT
+    assert ExerciseCandidateDecision.objects.filter(candidate=candidate).count() == 0
