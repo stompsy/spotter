@@ -70,6 +70,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 40 merged: Phase 5 body-area and movement-type volume summaries in progress insights with aggregation coverage tests.
 - Slice 41 merged: Phase 5 load-safety alerts for abrupt spikes and sustained high-RPE streaks plus explicit educational/non-diagnostic insight copy with progress-flow coverage tests.
 - Slice 42 merged: Phase 6 first curated bundles seeding command for warm-up/calisthenics/cooldown plus 30-day abs and lunge challenge seeds with idempotent command coverage.
+- Slice 43 merged: Phase 6 ingestion adapters expanded to document, dataset, media, and manual paths with adapter routing and ingestion command coverage tests.
 
 ## Phased roadmap
 
@@ -146,7 +147,7 @@ Progress notation used below:
 - Tier A structured exercise datasets
 - Tier B media sources with asset-level licensing
 - Tier C safety overlays
-3. [IN PROGRESS] Add ingestion adapters:
+3. [DONE] ~~Add ingestion adapters:~~
 - dataset adapter
 - media adapter
 - manual editor adapter
