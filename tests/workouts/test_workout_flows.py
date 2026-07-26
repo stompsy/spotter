@@ -320,6 +320,7 @@ def test_review_action_redirects_back_to_filtered_queue(client):
         username="queue_redirect_reviewer",
         email="queue_redirect_reviewer@example.com",
         password="pw",
+        is_staff=True,
     )
     source = ExerciseSource.objects.create(
         name="Queue redirect source",

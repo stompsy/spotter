@@ -70,6 +70,7 @@ class ExerciseListView(LoginRequiredMixin, ListView):
         )[:12]
         context["exercise_form"] = kwargs.get("exercise_form") or ExerciseForm()
         context["exercise_category_choices"] = ExerciseCategory.choices
+        context["can_review_candidates"] = _can_review_candidates(self.request.user)
         context["candidates"] = candidates
         context["recent_candidate_decisions"] = recent_decisions
         context["selected_candidate_status"] = selected_status
@@ -127,6 +128,9 @@ class ExerciseToggleActiveView(LoginRequiredMixin, View):
 
 class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
     def post(self, request: HttpRequest, candidate_id: int) -> HttpResponse:
+        if not _can_review_candidates(request.user):
+            raise Http404("Candidate not found")
+
         candidate = get_object_or_404(ExerciseCandidate, id=candidate_id)
         action = request.POST.get("action", "").strip().lower()
         reason = request.POST.get("reason", "").strip()
@@ -447,3 +451,7 @@ def _can_view_plan(user, plan: WorkoutPlan) -> bool:
         user=user,
         status=MembershipStatus.ACTIVE,
     ).exists()
+
+
+def _can_review_candidates(user) -> bool:
+    return user.is_staff or user.is_superuser
