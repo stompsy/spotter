@@ -9,6 +9,7 @@ from .views import (
     WorkoutChallengeDayCompletionCreateView,
     WorkoutPlanAssignmentStateView,
     WorkoutPlanAssignView,
+    WorkoutPlanCalendarView,
     WorkoutPlanCloneView,
     WorkoutPlanComposeTemplateView,
     WorkoutPlanDetailView,
@@ -40,6 +41,7 @@ urlpatterns = [
         name="exercise_candidate_review",
     ),
     path("<slug:slug>/", WorkoutPlanDetailView.as_view(), name="detail"),
+    path("<slug:slug>/calendar/", WorkoutPlanCalendarView.as_view(), name="calendar"),
     path("<slug:slug>/edit/", WorkoutPlanUpdateView.as_view(), name="edit"),
     path("<slug:slug>/clone/", WorkoutPlanCloneView.as_view(), name="clone"),
     path(

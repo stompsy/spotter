@@ -1111,6 +1111,107 @@ def test_challenge_assignment_expands_challenge_days_into_schedule_preview(clien
 
 
 @pytest.mark.django_db
+def test_plan_calendar_view_supports_all_modes(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="calendar_modes_owner",
+        email="calendar_modes_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Calendar Modes Plan",
+        slug="calendar-modes-plan",
+        description="",
+        created_by=user,
+    )
+    starts_on = timezone.localdate()
+    WorkoutPlanAssignment.objects.create(
+        plan=plan,
+        assigned_to=user,
+        starts_on=starts_on,
+        recurs_every_days=7,
+        is_active=True,
+    )
+
+    client.force_login(user)
+    for mode in ["daily", "rolling_3_day", "weekly", "monthly", "yearly"]:
+        response = client.get(
+            reverse("workouts:calendar", kwargs={"slug": plan.slug}),
+            {"view": mode, "date": starts_on.isoformat()},
+        )
+        assert response.status_code == 200
+        content = response.content.decode("utf-8")
+        assert "Calendar Entries" in content
+        assert "Daily" in content
+        assert "Rolling 3-Day" in content
+        assert "Weekly" in content
+        assert "Monthly" in content
+        assert "Yearly" in content
+
+
+@pytest.mark.django_db
+def test_plan_calendar_view_shows_challenge_day_schedule_entries(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="calendar_challenge_owner",
+        email="calendar_challenge_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Calendar Challenge Plan",
+        slug="calendar-challenge-plan",
+        description="",
+        created_by=user,
+        plan_type="challenge",
+        duration_band="short",
+        challenge_duration_days=3,
+        challenge_focus_area="Core",
+    )
+    WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=1,
+        title="Foundation",
+        focus_area="Core",
+        target_duration_minutes=10,
+    )
+    WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=2,
+        title="Build",
+        focus_area="Core",
+        target_duration_minutes=12,
+    )
+    WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=3,
+        title="Finish",
+        focus_area="Core",
+        target_duration_minutes=14,
+    )
+    starts_on = timezone.localdate()
+    WorkoutPlanAssignment.objects.create(
+        plan=plan,
+        assigned_to=user,
+        starts_on=starts_on,
+        is_active=True,
+    )
+
+    client.force_login(user)
+    response = client.get(
+        reverse("workouts:calendar", kwargs={"slug": plan.slug}),
+        {"view": "rolling_3_day", "date": starts_on.isoformat()},
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Challenge day 1" in content
+    assert "Challenge day 2" in content
+    assert "Challenge day 3" in content
+    assert "Foundation" in content
+    assert "Finish" in content
+
+
+@pytest.mark.django_db
 def test_user_can_create_and_archive_exercise(client):
     user_model = get_user_model()
     user = user_model.objects.create_user(
