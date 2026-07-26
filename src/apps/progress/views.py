@@ -2,7 +2,8 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Avg
+from django.db.models import Avg, Count
+from django.db.models.functions import TruncDate
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.utils import timezone
@@ -21,6 +22,7 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ListView):
     context_object_name = "logs"
 
     WINDOW_DAYS_OPTIONS = [7, 14, 30, 90]
+    TREND_DAYS_OPTIONS = [7, 14, 30]
 
     def get_queryset(self):
         queryset = WorkoutLog.objects.filter(performed_by=self.request.user).select_related(
@@ -48,11 +50,13 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ListView):
         context["log_form"] = kwargs.get("log_form") or WorkoutLogForm(user=self.request.user)
         logs_queryset = context["logs"]
         context["insights"] = self._build_insights(logs_queryset)
+        context["rpe_trend"] = self._build_rpe_trend(logs_queryset)
         context["filter_options"] = self._filter_options()
         context["selected_filters"] = {
             "days": self.request.GET.get("days", "all").strip() or "all",
             "plan": self.request.GET.get("plan", "").strip(),
             "community": self.request.GET.get("community", "").strip(),
+            "trend_days": str(self._trend_days_filter()),
         }
         return context
 
@@ -104,6 +108,33 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ListView):
             return None
         return parsed
 
+    def _trend_days_filter(self):
+        value = self.request.GET.get("trend_days", "").strip().lower()
+        if not value or not value.isdigit():
+            return 14
+        parsed = int(value)
+        if parsed not in self.TREND_DAYS_OPTIONS:
+            return 14
+        return parsed
+
+    def _build_rpe_trend(self, logs):
+        trend_days = self._trend_days_filter()
+        cutoff = timezone.now() - timedelta(days=trend_days)
+        points = list(
+            logs.filter(
+                completed_at__gte=cutoff,
+                perceived_exertion__isnull=False,
+            )
+            .annotate(day=TruncDate("completed_at"))
+            .values("day")
+            .annotate(avg_rpe=Avg("perceived_exertion"), entry_count=Count("id"))
+            .order_by("day")
+        )
+        return {
+            "window_days": trend_days,
+            "points": points,
+        }
+
     def _filter_options(self):
         base_logs = WorkoutLog.objects.filter(performed_by=self.request.user)
         plans = WorkoutPlan.objects.filter(
@@ -114,6 +145,7 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ListView):
         ).order_by("name")
         return {
             "days": self.WINDOW_DAYS_OPTIONS,
+            "trend_days": self.TREND_DAYS_OPTIONS,
             "plans": plans,
             "communities": communities,
         }

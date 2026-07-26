@@ -29,6 +29,8 @@ The original plan lived in session memory and was not visible in the workspace t
 - Acceptance tests now cover progress insight aggregation and missing-RPE fallback behavior.
 - Progress filtering controls are implemented for date window and plan/community scoped log queries.
 - Acceptance tests now cover date-window and plan/community filter correctness.
+- Lightweight perceived-exertion trend output is implemented with daily averages across a selected recent window.
+- Acceptance tests now cover trend aggregation output and empty-state behavior.
 
 ### In progress quality baseline
 - Focused tests exist for community moderation and notifications inbox/read actions.
@@ -43,7 +45,7 @@ The original plan lived in session memory and was not visible in the workspace t
 ## Remaining high-value work
 
 ### 1. Progress depth iteration
-- Add a lightweight trend view for perceived exertion over time.
+- Add simple chart rendering for trend points and compare-period indicators.
 
 ## Suggested next implementation step
-Implement a lightweight perceived-exertion trend view with acceptance tests for recent-window trend output.
+Implement chart-style trend rendering and compare-period summaries on the progress page.
