@@ -602,8 +602,14 @@ class WorkoutPlanCalendarView(LoginRequiredMixin, DetailView):
             window_end=window_end,
             max_entries=1000,
         )
+        can_manage_overlays = _can_manage_plan(self.request.user, self.object)
         for entry in calendar_entries:
-            _attach_calendar_entry_links(self.object, entry)
+            _attach_calendar_entry_links(
+                self.object,
+                entry,
+                viewer=self.request.user,
+                can_manage_overlays=can_manage_overlays,
+            )
 
         entries_by_date: dict[date, list[dict[str, object]]] = {}
         for entry in calendar_entries:
@@ -1509,7 +1515,13 @@ def _build_schedule_entries_for_range(
     return entries[:max_entries]
 
 
-def _attach_calendar_entry_links(plan: WorkoutPlan, entry: dict[str, object]) -> None:
+def _attach_calendar_entry_links(
+    plan: WorkoutPlan,
+    entry: dict[str, object],
+    *,
+    viewer,
+    can_manage_overlays: bool,
+) -> None:
     plan_detail_url = reverse("workouts:detail", kwargs={"slug": plan.slug})
     logs_query = urlencode(
         {
@@ -1522,6 +1534,44 @@ def _attach_calendar_entry_links(plan: WorkoutPlan, entry: dict[str, object]) ->
     entry["logs_url"] = f"{reverse('progress:logs')}?{logs_query}"
     entry["notes_url"] = None
     entry["challenge_progress_url"] = None
+    entry["assignment_display_label"] = None
+    entry["overlay_items"] = []
+
+    assignment = entry["assignment"]
+    assigned_user = assignment.assigned_to
+    assigned_community = assignment.assigned_community
+
+    if assigned_user is not None:
+        can_view_user_identity = can_manage_overlays or assigned_user.id == viewer.id
+        if can_view_user_identity:
+            entry["assignment_display_label"] = f"User: {assigned_user.username}"
+        else:
+            entry["assignment_display_label"] = "User assignment"
+    elif assigned_community is not None:
+        entry["assignment_display_label"] = f"Community: {assigned_community.name}"
+
+    if assigned_community is not None:
+        entry["overlay_items"].append(
+            {
+                "label": f"Community overlay: {assigned_community.name}",
+                "tone": "community",
+            }
+        )
+
+    if assigned_user is not None and assigned_user.id == viewer.id:
+        entry["overlay_items"].append(
+            {
+                "label": "Personal overlay: assigned to you",
+                "tone": "personal",
+            }
+        )
+    elif assigned_user is not None and can_manage_overlays:
+        entry["overlay_items"].append(
+            {
+                "label": f"Coach overlay: assigned athlete {assigned_user.username}",
+                "tone": "coach",
+            }
+        )
 
     challenge_day = entry["challenge_day"]
     if challenge_day is None:

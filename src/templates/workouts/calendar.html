@@ -43,12 +43,17 @@
                       {% if entry.challenge_day.title %}• {{ entry.challenge_day.title }}{% endif %}
                       {% if entry.challenge_day.target_duration_minutes %}• {{ entry.challenge_day.target_duration_minutes }} min target{% endif %}
                     {% else %}
-                      {% if entry.assignment.assigned_to %}
-                        • User: {{ entry.assignment.assigned_to.username }}
-                      {% elif entry.assignment.assigned_community %}
-                        • Community: {{ entry.assignment.assigned_community.name }}
+                      {% if entry.assignment_display_label %}
+                        • {{ entry.assignment_display_label }}
                       {% endif %}
                       {% if entry.assignment.recurs_every_days %}• every {{ entry.assignment.recurs_every_days }} days{% endif %}
+                    {% endif %}
+                    {% if entry.overlay_items %}
+                      <span class="ml-2 inline-flex flex-wrap gap-2">
+                        {% for overlay in entry.overlay_items %}
+                          <span class="rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide {% if overlay.tone == 'coach' %}border-sky-300/60 bg-sky-300/10 text-sky-200{% elif overlay.tone == 'community' %}border-emerald-300/60 bg-emerald-300/10 text-emerald-200{% else %}border-zinc-400/60 bg-zinc-400/10 text-zinc-200{% endif %}">{{ overlay.label }}</span>
+                        {% endfor %}
+                      </span>
                     {% endif %}
                     <span class="ml-2 inline-flex flex-wrap gap-2">
                       <a class="text-brand-neon hover:underline" href="{{ entry.workout_url }}">Open workout</a>
