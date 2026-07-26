@@ -71,6 +71,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 41 merged: Phase 5 load-safety alerts for abrupt spikes and sustained high-RPE streaks plus explicit educational/non-diagnostic insight copy with progress-flow coverage tests.
 - Slice 42 merged: Phase 6 first curated bundles seeding command for warm-up/calisthenics/cooldown plus 30-day abs and lunge challenge seeds with idempotent command coverage.
 - Slice 43 merged: Phase 6 ingestion adapters expanded to document, dataset, media, and manual paths with adapter routing and ingestion command coverage tests.
+- Slice 44 merged: Phase 6 ingestion quality checks added for duplicate detection, instruction completeness score, and safety completeness score with candidate metadata coverage tests.
 
 ## Phased roadmap
 
@@ -157,7 +158,7 @@ Progress notation used below:
 - approved
 - published
 - deprecated
-5. [IN PROGRESS] Add content quality checks:
+5. [DONE] ~~Add content quality checks:~~
 - duplicate detection
 - instruction completeness score
 - safety completeness score

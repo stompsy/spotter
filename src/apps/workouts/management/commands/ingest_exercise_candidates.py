@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path
 
+from django.db.models import Count
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
@@ -27,6 +28,32 @@ LUNGE_PATTERNS = [
     re.compile(r"\bReverse Lunges?\b", re.IGNORECASE),
     re.compile(r"\bSwitch Lunges?\b", re.IGNORECASE),
 ]
+
+INSTRUCTION_TOKENS = {
+    "set",
+    "sets",
+    "rep",
+    "reps",
+    "minute",
+    "minutes",
+    "second",
+    "seconds",
+    "tempo",
+    "hold",
+}
+
+SAFETY_TOKENS = {
+    "warm up",
+    "warm-up",
+    "form",
+    "control",
+    "pain",
+    "stop",
+    "recover",
+    "rest",
+    "breath",
+    "alignment",
+}
 
 
 def normalize_exercise_name(raw_name: str) -> str:
@@ -152,6 +179,14 @@ def extract_manual_pages(candidate_names: list[str]) -> tuple[list[str], str, st
     return ["\n".join(names)], "manual_entry", None
 
 
+def _token_completeness_score(text: str, tokens: set[str]) -> float:
+    lowered = text.lower()
+    token_hits = sum(1 for token in tokens if token in lowered)
+    if token_hits <= 0:
+        return 0.0
+    return min(token_hits / 4.0, 1.0)
+
+
 class Command(BaseCommand):
     help = "Ingest draft exercise candidates from a text source file"
 
@@ -223,12 +258,17 @@ class Command(BaseCommand):
             source_name = source_file.name
 
         normalized_map: dict[str, str] = {}
+        combined_cleaned_text = ""
         for raw_text in pages:
             cleaned_text = clean_extracted_text(raw_text)
+            combined_cleaned_text = f"{combined_cleaned_text}\n{cleaned_text}".strip()
             extracted = extract_candidates(cleaned_text)
             for raw_name in extracted:
                 normalized = normalize_exercise_name(raw_name)
                 normalized_map.setdefault(normalized, raw_name)
+
+        instruction_score = _token_completeness_score(combined_cleaned_text, INSTRUCTION_TOKENS)
+        safety_score = _token_completeness_score(combined_cleaned_text, SAFETY_TOKENS)
 
         if options["dry_run"]:
             self.stdout.write(f"Found {len(normalized_map)} unique candidates")
@@ -268,9 +308,17 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"Extraction warning: {extraction_error}"))
 
         created = 0
+        existing_duplicate_counts = {
+            row["normalized_name"]: int(row["total"])
+            for row in ExerciseCandidate.objects.filter(
+                normalized_name__in=normalized_map.keys(),
+            )
+            .values("normalized_name")
+            .annotate(total=Count("id"))
+        }
         for normalized_name, raw_name in normalized_map.items():
             confidence = 0.950 if "lunge" in normalized_name else 0.700
-            _, candidate_created = ExerciseCandidate.objects.get_or_create(
+            candidate, candidate_created = ExerciseCandidate.objects.get_or_create(
                 source=source,
                 normalized_name=normalized_name,
                 defaults={
@@ -279,6 +327,22 @@ class Command(BaseCommand):
                     "confidence": confidence,
                 },
             )
+
+            duplicate_count = existing_duplicate_counts.get(normalized_name, 0)
+            if candidate_created:
+                duplicate_count += 1
+            quality_checks = {
+                "duplicate_candidates": duplicate_count > 1,
+                "duplicate_count": duplicate_count,
+                "instruction_completeness_score": instruction_score,
+                "safety_completeness_score": safety_score,
+            }
+
+            metadata = dict(candidate.metadata) if isinstance(candidate.metadata, dict) else {}
+            metadata["quality_checks"] = quality_checks
+            candidate.metadata = metadata
+            candidate.save(update_fields=["metadata", "updated_at"])
+
             if candidate_created:
                 created += 1
 
