@@ -30,6 +30,12 @@
               </div>
 
               <p class="mt-3 text-sm text-zinc-300">{{ exercise.description|default:"No description." }}</p>
+              {% if exercise.contraindications or exercise.safety_notes %}
+                <p class="mt-2 text-xs text-amber-100">Safety: {{ exercise.safety_notes|default:"None" }}{% if exercise.contraindications %} | Contraindications: {{ exercise.contraindications }}{% endif %}</p>
+              {% endif %}
+              {% if exercise.prescription_strength or exercise.prescription_hypertrophy or exercise.prescription_endurance %}
+                <p class="mt-2 text-xs text-zinc-400">Prescriptions - Strength: {{ exercise.prescription_strength|default:"-" }}, Hypertrophy: {{ exercise.prescription_hypertrophy|default:"-" }}, Endurance: {{ exercise.prescription_endurance|default:"-" }}</p>
+              {% endif %}
 
               <details class="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
                 <summary class="cursor-pointer text-sm font-semibold text-zinc-100">Edit exercise</summary>
@@ -86,6 +92,42 @@
                   <div>
                     <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="instructions_{{ exercise.id }}">Instructions</label>
                     <textarea class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="instructions_{{ exercise.id }}" name="instructions" rows="3">{{ exercise.instructions }}</textarea>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="contraindications_{{ exercise.id }}">Contraindications</label>
+                    <textarea class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="contraindications_{{ exercise.id }}" name="contraindications" rows="2">{{ exercise.contraindications }}</textarea>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="safety_notes_{{ exercise.id }}">Safety notes</label>
+                    <textarea class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="safety_notes_{{ exercise.id }}" name="safety_notes" rows="2">{{ exercise.safety_notes }}</textarea>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="setup_steps_{{ exercise.id }}">Setup steps</label>
+                    <textarea class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="setup_steps_{{ exercise.id }}" name="setup_steps" rows="2">{{ exercise.setup_steps }}</textarea>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="execution_steps_{{ exercise.id }}">Execution steps</label>
+                    <textarea class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="execution_steps_{{ exercise.id }}" name="execution_steps" rows="2">{{ exercise.execution_steps }}</textarea>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="common_mistakes_{{ exercise.id }}">Common mistakes</label>
+                    <textarea class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="common_mistakes_{{ exercise.id }}" name="common_mistakes" rows="2">{{ exercise.common_mistakes }}</textarea>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="coaching_cues_{{ exercise.id }}">Coaching cues</label>
+                    <textarea class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="coaching_cues_{{ exercise.id }}" name="coaching_cues" rows="2">{{ exercise.coaching_cues }}</textarea>
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="prescription_strength_{{ exercise.id }}">Strength prescription</label>
+                    <input class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="prescription_strength_{{ exercise.id }}" name="prescription_strength" value="{{ exercise.prescription_strength }}" placeholder="e.g. 5x3">
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="prescription_hypertrophy_{{ exercise.id }}">Hypertrophy prescription</label>
+                    <input class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="prescription_hypertrophy_{{ exercise.id }}" name="prescription_hypertrophy" value="{{ exercise.prescription_hypertrophy }}" placeholder="e.g. 4x8-12">
+                  </div>
+                  <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="prescription_endurance_{{ exercise.id }}">Endurance prescription</label>
+                    <input class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="prescription_endurance_{{ exercise.id }}" name="prescription_endurance" value="{{ exercise.prescription_endurance }}" placeholder="e.g. 3x20 or 45s">
                   </div>
                   <label class="inline-flex items-center gap-2 text-sm text-zinc-200">
                     <input type="checkbox" name="is_active" {% if exercise.is_active %}checked{% endif %}>
