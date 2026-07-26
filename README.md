@@ -69,10 +69,10 @@ Use SQLite only when explicitly needed by setting:
 
 ## Static Asset Policy
 
-Tailwind source input is intentionally ignored from git:
+Tailwind source input is versioned and required by CI:
 
-- `assets/css/input.css` is local/developer source and not committed.
-- `src/static/css/output.css` is the build artifact used for deployments.
+- `assets/css/input.css` is committed source-of-truth for Tailwind compilation.
+- `src/static/css/output.css` is the generated build artifact used by the app.
 
 Rebuild CSS when frontend classes change:
 

@@ -9,4 +9,3 @@ __pycache__/
 node_modules/
 staticfiles/
 .env
-assets/css/input.css

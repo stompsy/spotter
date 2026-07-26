@@ -44,7 +44,7 @@ def test_author_can_submit_guidance_for_review(client):
 
     client.force_login(author)
     response = client.post(
-        reverse("guidance:submit", kwargs={"guidance_id": guidance.id}),
+        reverse("guidance:submit", kwargs={"guidance_id": guidance.pk}),
     )
 
     assert response.status_code == 302
@@ -88,7 +88,7 @@ def test_moderator_can_approve_then_publish_guidance(client):
 
     client.force_login(moderator)
     moderate_response = client.post(
-        reverse("guidance:moderate", kwargs={"guidance_id": guidance.id}),
+        reverse("guidance:moderate", kwargs={"guidance_id": guidance.pk}),
         {"decision": ModerationDecision.APPROVED, "reason": "Clear and actionable"},
     )
     assert moderate_response.status_code == 302
@@ -97,9 +97,9 @@ def test_moderator_can_approve_then_publish_guidance(client):
     assert guidance.status == ContentStatus.APPROVED
     assert guidance.published_at is None
 
-    moderation_record = ModerationRecord.objects.get(target_id=str(guidance.id))
+    moderation_record = ModerationRecord.objects.get(target_id=str(guidance.pk))
     assert moderation_record.decision == ModerationDecision.APPROVED
-    assert moderation_record.decided_by_id == moderator.id
+    assert moderation_record.decided_by == moderator
 
     event = NotificationEvent.objects.get(
         recipient=author,
@@ -108,7 +108,7 @@ def test_moderator_can_approve_then_publish_guidance(client):
     assert event.payload["decision"] == ModerationDecision.APPROVED
 
     publish_response = client.post(
-        reverse("guidance:publish", kwargs={"guidance_id": guidance.id}),
+        reverse("guidance:publish", kwargs={"guidance_id": guidance.pk}),
     )
     assert publish_response.status_code == 302
 
@@ -151,7 +151,7 @@ def test_non_moderator_cannot_review_guidance(client):
 
     client.force_login(member)
     response = client.post(
-        reverse("guidance:moderate", kwargs={"guidance_id": guidance.id}),
+        reverse("guidance:moderate", kwargs={"guidance_id": guidance.pk}),
         {"decision": ModerationDecision.REJECTED},
     )
 
