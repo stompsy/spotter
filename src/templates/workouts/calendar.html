@@ -31,6 +31,9 @@
               {{ row.day|date:"Y-m-d" }}
               {% if row.is_today %}• Today{% endif %}
             </p>
+            <p class="mt-1 text-[11px] font-bold uppercase tracking-wide {% if row.state == 'complete' %}text-emerald-300{% elif row.state == 'partial' %}text-amber-300{% elif row.state == 'missed' %}text-rose-300{% elif row.state == 'planned' %}text-sky-300{% else %}text-zinc-500{% endif %}">
+              State: {{ row.state|title }}
+            </p>
             {% if row.entries %}
               <ul class="mt-2 space-y-1">
                 {% for entry in row.entries %}
