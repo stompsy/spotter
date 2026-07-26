@@ -1162,3 +1162,49 @@ def test_reviewer_queue_displays_policy_help_panel(client):
     content = response.content.decode("utf-8")
     assert "Policy Help" in content
     assert "Content policy source: docs/content-policy.md" in content
+
+
+@pytest.mark.django_db
+def test_exercise_library_displays_rich_card_sections_and_authoring_form(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="exercise_library_viewer",
+        email="exercise_library_viewer@example.com",
+        password="pw",
+    )
+    exercise = Exercise.objects.create(
+        name="Tempo Squat",
+        slug="tempo-squat",
+        category=ExerciseCategory.STRENGTH,
+        movement_type=ExerciseMovementType.SQUAT,
+        primary_body_area=ExerciseBodyArea.LOWER_BODY,
+        difficulty_level=ExerciseDifficultyLevel.INTERMEDIATE,
+        equipment_requirement=ExerciseEquipmentRequirement.MINIMAL,
+        description="Controlled squat variation.",
+        instructions="Lower with a three count and stand with intent.",
+        safety_notes="Brace and keep heels grounded.",
+        setup_steps="Stand at shoulder width.",
+        execution_steps="Sit down and drive up.",
+        coaching_cues="Spread the floor.",
+        is_active=True,
+    )
+    ExerciseMedia.objects.create(
+        exercise=exercise,
+        media_type="image",
+        external_url="https://example.com/tempo-squat.jpg",
+        license_name="CC BY 4.0",
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("workouts:exercises"))
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Movement profile" in content
+    assert "Authoring notes" in content
+    assert "Safety and coaching" in content
+    assert "Default prescriptions" in content
+    assert "Active library item" in content
+    assert "1 media" in content
+    assert "Classification" in content
+    assert "Authoring" in content
