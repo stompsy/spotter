@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import pytest
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
+from django.urls import reverse
 
 from apps.workouts.models import (
     CurationStatus,
@@ -131,3 +134,94 @@ def test_ingest_exercise_candidates_records_pdf_page_logging_with_routing_stub(
     assert pages[0].status == ExtractionPageStatus.EXTRACTED
     assert pages[1].status == ExtractionPageStatus.PARTIAL
     assert pages[2].status == ExtractionPageStatus.EXTRACTED
+
+
+@pytest.mark.django_db
+def test_exercise_candidate_transition_guardrails_allow_and_reject_paths():
+    source = ExerciseSource.objects.create(
+        name="Candidate source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/candidate-source.txt",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Forward Lunges",
+        normalized_name="forward lunge",
+        status=CurationStatus.DRAFT,
+    )
+
+    candidate.transition_to(CurationStatus.NEEDS_REVIEW)
+    candidate.save(update_fields=["status", "updated_at"])
+    assert candidate.status == CurationStatus.NEEDS_REVIEW
+
+    with pytest.raises(ValidationError):
+        candidate.transition_to(CurationStatus.PUBLISHED)
+
+
+@pytest.mark.django_db
+def test_exercise_candidate_review_action_endpoint_transitions_status(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="candidate_reviewer",
+        email="candidate_reviewer@example.com",
+        password="pw",
+    )
+    source = ExerciseSource.objects.create(
+        name="Review source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/review-source.txt",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Forward Lunges",
+        normalized_name="forward lunge",
+        status=CurationStatus.DRAFT,
+    )
+
+    client.force_login(user)
+    mark_review_response = client.post(
+        reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id}),
+        {"action": "mark_review"},
+    )
+    assert mark_review_response.status_code == 302
+    candidate.refresh_from_db()
+    assert candidate.status == CurationStatus.NEEDS_REVIEW
+
+    approve_response = client.post(
+        reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id}),
+        {"action": "approve"},
+    )
+    assert approve_response.status_code == 302
+    candidate.refresh_from_db()
+    assert candidate.status == CurationStatus.APPROVED
+
+
+@pytest.mark.django_db
+def test_exercise_candidate_review_action_rejects_invalid_transition(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="candidate_reviewer_invalid",
+        email="candidate_reviewer_invalid@example.com",
+        password="pw",
+    )
+    source = ExerciseSource.objects.create(
+        name="Invalid transition source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/invalid-transition-source.txt",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Forward Lunges",
+        normalized_name="forward lunge",
+        status=CurationStatus.DRAFT,
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id}),
+        {"action": "publish"},
+    )
+
+    assert response.status_code == 302
+    candidate.refresh_from_db()
+    assert candidate.status == CurationStatus.DRAFT
