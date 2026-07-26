@@ -39,6 +39,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 9 merged: bootstrap command for Exercise Reviewers group provisioning and optional user assignment with command tests.
 - Slice 10 merged: reviewer onboarding runbook in README with local and production command examples.
 - Slice 11 merged: Phase 0 content policy, admin review checklist, and reusable guidance disclaimer pattern.
+- Slice 12 merged: publish-time metadata enforcement for attribution and safety guardrails with tests.
 
 ## Phased roadmap
 
