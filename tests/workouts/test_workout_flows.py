@@ -1212,6 +1212,117 @@ def test_plan_calendar_view_shows_challenge_day_schedule_entries(client):
 
 
 @pytest.mark.django_db
+def test_plan_calendar_view_displays_day_states_for_challenge_schedule(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="calendar_state_owner",
+        email="calendar_state_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Calendar State Plan",
+        slug="calendar-state-plan",
+        description="",
+        created_by=user,
+        plan_type="challenge",
+        duration_band="short",
+        challenge_duration_days=4,
+        challenge_focus_area="Core",
+    )
+    day_1 = WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=1,
+        title="Complete Day",
+        focus_area="Core",
+        target_duration_minutes=10,
+    )
+    day_2 = WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=2,
+        title="Partial Day",
+        focus_area="Core",
+        target_duration_minutes=10,
+    )
+    WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=3,
+        title="Missed Day",
+        focus_area="Core",
+        target_duration_minutes=10,
+    )
+    WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=4,
+        title="Planned Day",
+        focus_area="Core",
+        target_duration_minutes=10,
+    )
+
+    starts_on = timezone.localdate() - timedelta(days=2)
+    WorkoutPlanAssignment.objects.create(
+        plan=plan,
+        assigned_to=user,
+        starts_on=starts_on,
+        is_active=True,
+    )
+    client.force_login(user)
+    client.post(
+        reverse("workouts:challenge_completion_add", kwargs={"slug": plan.slug}),
+        {
+            "challenge_day": day_1.id,
+            "completed_minutes": "10",
+            "notes": "Done",
+        },
+    )
+    client.post(
+        reverse("workouts:challenge_completion_add", kwargs={"slug": plan.slug}),
+        {
+            "challenge_day": day_2.id,
+            "completed_minutes": "4",
+            "notes": "Partial",
+        },
+    )
+
+    response = client.get(
+        reverse("workouts:calendar", kwargs={"slug": plan.slug}),
+        {"view": "rolling_3_day", "date": starts_on.isoformat()},
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "State: Complete" in content
+    assert "State: Partial" in content
+    assert "State: Missed" in content
+
+
+@pytest.mark.django_db
+def test_plan_calendar_view_displays_rest_state_for_empty_days(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="calendar_rest_owner",
+        email="calendar_rest_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Calendar Rest Plan",
+        slug="calendar-rest-plan",
+        description="",
+        created_by=user,
+    )
+
+    client.force_login(user)
+    response = client.get(
+        reverse("workouts:calendar", kwargs={"slug": plan.slug}),
+        {"view": "daily", "date": timezone.localdate().isoformat()},
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "State: Rest" in content
+    assert "Rest day (no scheduled entry)." in content
+
+
+@pytest.mark.django_db
 def test_user_can_create_and_archive_exercise(client):
     user_model = get_user_model()
     user = user_model.objects.create_user(

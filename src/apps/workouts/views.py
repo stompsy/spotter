@@ -605,15 +605,26 @@ class WorkoutPlanCalendarView(LoginRequiredMixin, DetailView):
         for entry in calendar_entries:
             entries_by_date.setdefault(entry["scheduled_date"], []).append(entry)
 
+        completion_by_challenge_day_id = _challenge_completion_totals_by_day(
+            plan=self.object,
+            user=self.request.user,
+        )
         day_rows = []
         current_day = window_start
         today = timezone.localdate()
         while current_day <= window_end:
+            day_entries = entries_by_date.get(current_day, [])
+            day_state = _determine_calendar_day_state(
+                day_entries,
+                completion_by_challenge_day_id,
+                today=today,
+            )
             day_rows.append(
                 {
                     "day": current_day,
                     "is_today": current_day == today,
-                    "entries": entries_by_date.get(current_day, []),
+                    "entries": day_entries,
+                    "state": day_state,
                 }
             )
             current_day = current_day + timedelta(days=1)
@@ -1181,6 +1192,60 @@ def _annotate_challenge_day_completion_state(
             day.user_completion_state = "complete"
         else:
             day.user_completion_state = "partial"
+
+
+def _challenge_completion_totals_by_day(*, plan: WorkoutPlan, user) -> dict[int, int]:
+    if plan.plan_type != WorkoutPlanType.CHALLENGE:
+        return {}
+
+    completion_rows = (
+        WorkoutChallengeDayCompletion.objects.filter(
+            challenge_day__plan=plan,
+            completed_by=user,
+        )
+        .values("challenge_day_id")
+        .annotate(completed_minutes=Sum("completed_minutes"))
+    )
+    return {
+        row["challenge_day_id"]: int(row["completed_minutes"] or 0)
+        for row in completion_rows
+    }
+
+
+def _determine_calendar_day_state(
+    day_entries: list[dict[str, object]],
+    completion_by_challenge_day_id: dict[int, int],
+    *,
+    today: date,
+) -> str:
+    if not day_entries:
+        return "rest"
+
+    if any(entry["scheduled_date"] > today for entry in day_entries):
+        return "planned"
+
+    challenge_entries = [entry for entry in day_entries if entry["challenge_day"] is not None]
+    if challenge_entries:
+        all_complete = True
+        any_partial = False
+        for entry in challenge_entries:
+            challenge_day = entry["challenge_day"]
+            completed_minutes = completion_by_challenge_day_id.get(challenge_day.id, 0)
+            target_minutes = challenge_day.target_duration_minutes or 0
+
+            if target_minutes > 0 and completed_minutes >= target_minutes:
+                continue
+            all_complete = False
+            if completed_minutes > 0:
+                any_partial = True
+
+        if all_complete:
+            return "complete"
+        if any_partial:
+            return "partial"
+        return "missed"
+
+    return "planned" if day_entries[0]["scheduled_date"] >= today else "missed"
 
 
 def _collect_plan_structure_validation_issues(plan: WorkoutPlan) -> list[str]:
