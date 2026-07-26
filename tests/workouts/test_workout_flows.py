@@ -151,6 +151,15 @@ def test_user_can_create_and_archive_exercise(client):
             "equipment_requirement": ExerciseEquipmentRequirement.NONE,
             "description": "Multi-direction lunge prep",
             "instructions": "2 sets each direction",
+            "contraindications": "Acute knee pain",
+            "safety_notes": "Keep knee tracking over toes",
+            "setup_steps": "Stand tall and brace core",
+            "execution_steps": "Step, lower, return",
+            "common_mistakes": "Knee collapse",
+            "coaching_cues": "Drive through midfoot",
+            "prescription_strength": "5x3 each side",
+            "prescription_hypertrophy": "4x10 each side",
+            "prescription_endurance": "3x20 each side",
             "is_active": "on",
         },
     )
@@ -162,6 +171,15 @@ def test_user_can_create_and_archive_exercise(client):
     assert exercise.primary_body_area == ExerciseBodyArea.LOWER_BODY
     assert exercise.difficulty_level == ExerciseDifficultyLevel.BEGINNER
     assert exercise.equipment_requirement == ExerciseEquipmentRequirement.NONE
+    assert exercise.contraindications == "Acute knee pain"
+    assert exercise.safety_notes == "Keep knee tracking over toes"
+    assert exercise.setup_steps == "Stand tall and brace core"
+    assert exercise.execution_steps == "Step, lower, return"
+    assert exercise.common_mistakes == "Knee collapse"
+    assert exercise.coaching_cues == "Drive through midfoot"
+    assert exercise.prescription_strength == "5x3 each side"
+    assert exercise.prescription_hypertrophy == "4x10 each side"
+    assert exercise.prescription_endurance == "3x20 each side"
 
     archive_response = client.post(
         reverse("workouts:exercise_toggle_active", kwargs={"exercise_id": exercise.id}),
@@ -189,6 +207,15 @@ def test_user_can_update_exercise_taxonomy_fields(client):
         equipment_requirement=ExerciseEquipmentRequirement.STANDARD_GYM,
         description="Original",
         instructions="Original",
+        contraindications="Original contraindications",
+        safety_notes="Original safety",
+        setup_steps="Original setup",
+        execution_steps="Original execution",
+        common_mistakes="Original mistakes",
+        coaching_cues="Original cues",
+        prescription_strength="Original strength",
+        prescription_hypertrophy="Original hypertrophy",
+        prescription_endurance="Original endurance",
         is_active=True,
     )
 
@@ -204,6 +231,15 @@ def test_user_can_update_exercise_taxonomy_fields(client):
             "equipment_requirement": ExerciseEquipmentRequirement.SPECIALIZED,
             "description": "Updated",
             "instructions": "Updated",
+            "contraindications": "Updated contraindications",
+            "safety_notes": "Updated safety",
+            "setup_steps": "Updated setup",
+            "execution_steps": "Updated execution",
+            "common_mistakes": "Updated mistakes",
+            "coaching_cues": "Updated cues",
+            "prescription_strength": "5x5",
+            "prescription_hypertrophy": "4x12",
+            "prescription_endurance": "3x25",
             "is_active": "on",
         },
     )
@@ -213,6 +249,15 @@ def test_user_can_update_exercise_taxonomy_fields(client):
     assert exercise.primary_body_area == ExerciseBodyArea.SHOULDERS
     assert exercise.difficulty_level == ExerciseDifficultyLevel.ADVANCED
     assert exercise.equipment_requirement == ExerciseEquipmentRequirement.SPECIALIZED
+    assert exercise.contraindications == "Updated contraindications"
+    assert exercise.safety_notes == "Updated safety"
+    assert exercise.setup_steps == "Updated setup"
+    assert exercise.execution_steps == "Updated execution"
+    assert exercise.common_mistakes == "Updated mistakes"
+    assert exercise.coaching_cues == "Updated cues"
+    assert exercise.prescription_strength == "5x5"
+    assert exercise.prescription_hypertrophy == "4x12"
+    assert exercise.prescription_endurance == "3x25"
 
 
 @pytest.mark.django_db

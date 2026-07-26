@@ -21,6 +21,15 @@ class ExerciseForm(forms.ModelForm):
             "equipment_requirement",
             "description",
             "instructions",
+            "contraindications",
+            "safety_notes",
+            "setup_steps",
+            "execution_steps",
+            "common_mistakes",
+            "coaching_cues",
+            "prescription_strength",
+            "prescription_hypertrophy",
+            "prescription_endurance",
             "is_active",
         ]
 
