@@ -54,6 +54,11 @@
             <button class="inline-flex rounded-full bg-brand-neon px-4 py-2 text-sm font-bold uppercase tracking-wide text-brand-ink" type="submit">Apply</button>
             <a class="inline-flex rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-bold uppercase tracking-wide text-zinc-200 hover:border-brand-neon/60 hover:text-brand-neon" href="{% url 'progress:logs' %}">Reset</a>
           </div>
+
+          <div class="sm:col-span-4 flex flex-wrap items-center gap-2 pt-1">
+            <a class="inline-flex rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wide text-zinc-200 hover:border-brand-neon/60 hover:text-brand-neon" href="{% url 'progress:logs_export_csv' %}{% if active_querystring %}?{{ active_querystring }}{% endif %}">Export logs CSV</a>
+            <a class="inline-flex rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wide text-zinc-200 hover:border-brand-neon/60 hover:text-brand-neon" href="{% url 'progress:trend_export_csv' %}{% if active_querystring %}?{{ active_querystring }}{% endif %}">Export trend CSV</a>
+          </div>
         </form>
       </section>
 
