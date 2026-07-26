@@ -158,6 +158,7 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ProgressFiltersMixin, ListVie
         context["insights"] = self._build_insights(logs_queryset)
         context["challenge_kpis"] = self._build_challenge_kpis()
         context["volume_summaries"] = self._build_volume_summaries(logs_queryset)
+        context["load_safety_alerts"] = self._build_load_safety_alerts(logs_queryset)
         context["rpe_trend"] = self._build_rpe_trend(logs_queryset)
         context["filter_options"] = self._filter_options()
         context["selected_filters"] = {
@@ -204,6 +205,81 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ProgressFiltersMixin, ListVie
             "active_communities_30d": recent_30d_communities.values(
                 "community_id"
             ).distinct().count(),
+        }
+
+    def _build_load_safety_alerts(self, logs):
+        now = timezone.now()
+        high_rpe_threshold = 8
+        spike_delta_threshold = 1.5
+        alerts = []
+
+        rpe_logs = list(
+            logs.filter(perceived_exertion__isnull=False)
+            .values("completed_at", "perceived_exertion")
+            .order_by("-completed_at")
+        )
+        if not rpe_logs:
+            return {
+                "has_alerts": False,
+                "alerts": [],
+                "education_note": (
+                    "Educational signal only, not medical advice. If pain or unusual symptoms "
+                    "show up, stop training and seek qualified care."
+                ),
+            }
+
+        recent_start = now - timedelta(days=7)
+        previous_start = now - timedelta(days=14)
+        recent_avg = logs.filter(
+            completed_at__gte=recent_start,
+            perceived_exertion__isnull=False,
+        ).aggregate(avg=Avg("perceived_exertion"))["avg"]
+        previous_avg = logs.filter(
+            completed_at__gte=previous_start,
+            completed_at__lt=recent_start,
+            perceived_exertion__isnull=False,
+        ).aggregate(avg=Avg("perceived_exertion"))["avg"]
+
+        if recent_avg is not None and previous_avg is not None:
+            delta = float(recent_avg) - float(previous_avg)
+            if delta >= spike_delta_threshold and float(recent_avg) >= high_rpe_threshold - 0.5:
+                alerts.append(
+                    {
+                        "kind": "spike",
+                        "title": "Abrupt load spike",
+                        "message": (
+                            f"7-day average RPE is up by {delta:.1f} "
+                            f"({float(previous_avg):.1f} to {float(recent_avg):.1f})."
+                        ),
+                    }
+                )
+
+        current_high_streak = 0
+        for row in rpe_logs:
+            if int(row["perceived_exertion"]) >= high_rpe_threshold:
+                current_high_streak += 1
+            else:
+                break
+
+        if current_high_streak >= 3:
+            alerts.append(
+                {
+                    "kind": "streak",
+                    "title": "Sustained high RPE streak",
+                    "message": (
+                        f"{current_high_streak} consecutive logs at RPE "
+                        f"{high_rpe_threshold}+ were detected."
+                    ),
+                }
+            )
+
+        return {
+            "has_alerts": bool(alerts),
+            "alerts": alerts,
+            "education_note": (
+                "Educational signal only, not medical advice. If pain or unusual symptoms "
+                "show up, stop training and seek qualified care."
+            ),
         }
 
     def _build_volume_summaries(self, logs):

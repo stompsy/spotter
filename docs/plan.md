@@ -68,6 +68,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 38 merged: Phase 4 permission-aware coach/community overlays in calendar cells with role-sensitive visibility and coverage tests.
 - Slice 39 merged: Phase 5 challenge KPI panel for adherence, streaks, baseline-vs-current progress, and checkpoint deltas with progress-flow coverage tests.
 - Slice 40 merged: Phase 5 body-area and movement-type volume summaries in progress insights with aggregation coverage tests.
+- Slice 41 merged: Phase 5 load-safety alerts for abrupt spikes and sustained high-RPE streaks plus explicit educational/non-diagnostic insight copy with progress-flow coverage tests.
 
 ## Phased roadmap
 
@@ -135,8 +136,8 @@ Progress notation used below:
 - baseline vs current
 - checkpoint deltas and percentages
 2. [DONE] ~~Add body-area and movement-type volume summaries.~~
-3. [PENDING] Add load-safety alerts for abrupt spikes/repeated high-RPE streaks.
-4. [PENDING] Keep insights educational and non-diagnostic.
+3. [DONE] ~~Add load-safety alerts for abrupt spikes/repeated high-RPE streaks.~~
+4. [DONE] ~~Keep insights educational and non-diagnostic.~~
 
 ### Phase 6 - Internet Exercise Intelligence Pipeline and Curation
 1. [DONE] ~~Build source registry model for provenance and approval.~~

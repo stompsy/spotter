@@ -775,3 +775,108 @@ def test_progress_logs_show_empty_volume_summary_state_for_unplanned_logs(client
     content = response.content.decode()
     assert "Volume Summaries" in content
     assert "No logged plan volume yet for movement-type or body-area summaries." in content
+
+
+@pytest.mark.django_db
+def test_progress_logs_show_load_safety_alerts_for_spike_and_high_rpe_streak(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="load_alerts_user",
+        email="load_alerts_user@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Load Alerts Plan",
+        slug="load-alerts-plan",
+        created_by=user,
+        is_published=True,
+    )
+    now = timezone.now()
+
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=5,
+        completed_at=now - timedelta(days=12),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=5,
+        completed_at=now - timedelta(days=10),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=9,
+        completed_at=now - timedelta(days=3),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=8,
+        completed_at=now - timedelta(days=2),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=9,
+        completed_at=now - timedelta(days=1),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Load-Safety Alerts" in content
+    assert "Abrupt load spike" in content
+    assert "Sustained high RPE streak" in content
+    assert "3 consecutive logs at RPE 8+" in content
+    assert "Educational signal only, not medical advice." in content
+
+
+@pytest.mark.django_db
+def test_progress_logs_show_no_load_safety_alert_message_when_signals_absent(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="load_alerts_empty_user",
+        email="load_alerts_empty_user@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Load Alerts Empty Plan",
+        slug="load-alerts-empty-plan",
+        created_by=user,
+        is_published=True,
+    )
+    now = timezone.now()
+
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=6,
+        completed_at=now - timedelta(days=5),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=6,
+        completed_at=now - timedelta(days=3),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=7,
+        completed_at=now - timedelta(days=1),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Load-Safety Alerts" in content
+    assert "No load-safety alerts in the selected window." in content
+    assert "Educational only and non-diagnostic." in content
+    assert "Trend patterns are educational signals and not a diagnosis." in content
