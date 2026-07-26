@@ -9,6 +9,7 @@ from .views import (
     WorkoutPlanAssignmentStateView,
     WorkoutPlanAssignView,
     WorkoutPlanCloneView,
+    WorkoutPlanComposeTemplateView,
     WorkoutPlanDetailView,
     WorkoutPlanItemCreateView,
     WorkoutPlanListView,
@@ -46,6 +47,11 @@ urlpatterns = [
         name="publish_toggle",
     ),
     path("<slug:slug>/items/add/", WorkoutPlanItemCreateView.as_view(), name="add_item"),
+    path(
+        "<slug:slug>/compose/",
+        WorkoutPlanComposeTemplateView.as_view(),
+        name="compose_template",
+    ),
     path("<slug:slug>/assign/", WorkoutPlanAssignView.as_view(), name="assign"),
     path(
         "<slug:slug>/assignments/<int:assignment_id>/state/",

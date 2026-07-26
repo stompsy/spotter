@@ -447,6 +447,138 @@ def test_plan_creator_can_add_item(client):
 
 
 @pytest.mark.django_db
+def test_plan_detail_shows_guided_composer_for_manager(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="composer_owner",
+        email="composer_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Composer Plan",
+        slug="composer-plan",
+        description="",
+        created_by=user,
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("workouts:detail", kwargs={"slug": plan.slug}))
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Guided Composer" in content
+    assert "Short Session Starter" in content
+
+
+@pytest.mark.django_db
+def test_plan_manager_can_apply_guided_short_template(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="composer_apply_owner",
+        email="composer_apply_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Composer Apply Plan",
+        slug="composer-apply-plan",
+        description="",
+        created_by=user,
+    )
+    Exercise.objects.create(
+        name="Short A",
+        slug="short-a",
+        category=ExerciseCategory.MOVEMENT_PREPARATION,
+        duration_fit=ExerciseDurationFit.SHORT,
+        is_active=True,
+    )
+    Exercise.objects.create(
+        name="Short B",
+        slug="short-b",
+        category=ExerciseCategory.MOVEMENT_PREPARATION,
+        duration_fit=ExerciseDurationFit.SHORT,
+        is_active=True,
+    )
+    Exercise.objects.create(
+        name="Short C",
+        slug="short-c",
+        category=ExerciseCategory.MOVEMENT_PREPARATION,
+        duration_fit=ExerciseDurationFit.SHORT,
+        is_active=True,
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:compose_template", kwargs={"slug": plan.slug}),
+        {"template_key": "starter_short"},
+    )
+
+    assert response.status_code == 302
+    items = list(plan.items.order_by("order"))
+    assert len(items) == 3
+    assert items[0].order == 1
+    assert items[1].order == 2
+    assert items[2].order == 3
+    assert all(item.notes == "Guided composer template item." for item in items)
+
+
+@pytest.mark.django_db
+def test_challenge_plan_manager_can_apply_challenge_day_template(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="challenge_composer_owner",
+        email="challenge_composer_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Challenge Composer Plan",
+        slug="challenge-composer-plan",
+        description="",
+        created_by=user,
+        plan_type="challenge",
+        duration_band="short",
+        challenge_duration_days=7,
+        challenge_focus_area="Core",
+    )
+    day = WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=1,
+        title="Day One",
+        focus_area="Core",
+        target_duration_minutes=8,
+    )
+    Exercise.objects.create(
+        name="Core Starter A",
+        slug="core-starter-a",
+        category=ExerciseCategory.CORE_STABILITY,
+        movement_type=ExerciseMovementType.CORE,
+        primary_body_area=ExerciseBodyArea.CORE,
+        duration_fit=ExerciseDurationFit.SHORT,
+        is_active=True,
+    )
+    Exercise.objects.create(
+        name="Core Starter B",
+        slug="core-starter-b",
+        category=ExerciseCategory.CORE_STABILITY,
+        movement_type=ExerciseMovementType.CORE,
+        primary_body_area=ExerciseBodyArea.CORE,
+        duration_fit=ExerciseDurationFit.SHORT,
+        is_active=True,
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:compose_template", kwargs={"slug": plan.slug}),
+        {"template_key": "challenge_day_starter"},
+    )
+
+    assert response.status_code == 302
+    items = list(plan.items.order_by("order"))
+    assert len(items) == 2
+    assert all(item.challenge_day_id == day.id for item in items)
+    assert all("Guided challenge day template" in item.notes for item in items)
+
+
+@pytest.mark.django_db
 def test_plan_creator_can_assign_to_community(client):
     user_model = get_user_model()
     user = user_model.objects.create_user(
