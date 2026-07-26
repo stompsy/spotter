@@ -1,7 +1,11 @@
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
 
+from apps.communities.models import Community
 from apps.progress.models import WorkoutLog
 from apps.workouts.models import WorkoutPlan, WorkoutPlanAssignment
 
@@ -97,3 +101,98 @@ def test_workout_logs_view_shows_only_current_users_logs(client):
     content = response.content.decode()
     assert "Mine" in content
     assert "Not mine" not in content
+
+
+@pytest.mark.django_db
+def test_progress_insights_show_recent_counts_rpe_average_and_communities(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="insights_user",
+        email="insights_user@example.com",
+        password="pw",
+    )
+    community_a = Community.objects.create(
+        name="Insights A",
+        slug="insights-a",
+        created_by=user,
+    )
+    community_b = Community.objects.create(
+        name="Insights B",
+        slug="insights-b",
+        created_by=user,
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Insights Plan",
+        slug="insights-plan",
+        created_by=user,
+        is_published=True,
+    )
+    now = timezone.now()
+    WorkoutLog.objects.create(
+        plan=plan,
+        community=community_a,
+        performed_by=user,
+        perceived_exertion=7,
+        completed_at=now - timedelta(days=3),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        community=community_b,
+        performed_by=user,
+        perceived_exertion=9,
+        completed_at=now - timedelta(days=8),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        community=community_a,
+        performed_by=user,
+        perceived_exertion=None,
+        completed_at=now - timedelta(days=20),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        community=community_b,
+        performed_by=user,
+        perceived_exertion=5,
+        completed_at=now - timedelta(days=45),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs"))
+
+    assert response.status_code == 200
+    insights = response.context["insights"]
+    assert insights["total_logs"] == 4
+    assert insights["recent_logs_7d"] == 1
+    assert insights["active_communities_30d"] == 2
+    assert insights["avg_rpe_14d"] == pytest.approx(8.0)
+
+
+@pytest.mark.django_db
+def test_progress_insights_show_none_when_recent_rpe_missing(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="insights_no_rpe",
+        email="insights_no_rpe@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="No RPE Plan",
+        slug="no-rpe-plan",
+        created_by=user,
+        is_published=True,
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=None,
+        completed_at=timezone.now() - timedelta(days=2),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs"))
+
+    assert response.status_code == 200
+    insights = response.context["insights"]
+    assert insights["avg_rpe_14d"] is None
+    assert "No RPE yet" in response.content.decode()

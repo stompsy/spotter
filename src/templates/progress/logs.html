@@ -9,6 +9,27 @@
       <h2 class="mt-2 font-display text-4xl font-bold uppercase tracking-wide text-white">Workout Logs</h2>
       <p class="mt-2 text-sm text-zinc-300">Track effort and notes for completed sessions.</p>
 
+      <section class="mt-5 grid gap-3 sm:grid-cols-2">
+        <article class="rounded-xl border border-white/10 bg-black/20 p-4">
+          <p class="text-xs uppercase tracking-wide text-zinc-400">Recent Logs (7d)</p>
+          <p class="mt-2 font-display text-3xl font-bold uppercase tracking-wide text-brand-neon">{{ insights.recent_logs_7d }}</p>
+        </article>
+        <article class="rounded-xl border border-white/10 bg-black/20 p-4">
+          <p class="text-xs uppercase tracking-wide text-zinc-400">Average RPE (14d)</p>
+          <p class="mt-2 font-display text-3xl font-bold uppercase tracking-wide text-brand-neon">
+            {% if insights.avg_rpe_14d is not None %}{{ insights.avg_rpe_14d|floatformat:1 }}{% else %}No RPE yet{% endif %}
+          </p>
+        </article>
+        <article class="rounded-xl border border-white/10 bg-black/20 p-4">
+          <p class="text-xs uppercase tracking-wide text-zinc-400">Active Communities (30d)</p>
+          <p class="mt-2 font-display text-3xl font-bold uppercase tracking-wide text-brand-neon">{{ insights.active_communities_30d }}</p>
+        </article>
+        <article class="rounded-xl border border-white/10 bg-black/20 p-4">
+          <p class="text-xs uppercase tracking-wide text-zinc-400">Total Logs</p>
+          <p class="mt-2 font-display text-3xl font-bold uppercase tracking-wide text-brand-neon">{{ insights.total_logs }}</p>
+        </article>
+      </section>
+
       {% if logs %}
         <ul class="mt-5 space-y-3">
           {% for log in logs %}

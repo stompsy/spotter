@@ -1,7 +1,11 @@
+from datetime import timedelta
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Avg
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
+from django.utils import timezone
 from django.views.generic import ListView
 
 from .forms import WorkoutLogForm
@@ -21,6 +25,7 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["log_form"] = kwargs.get("log_form") or WorkoutLogForm(user=self.request.user)
+        context["insights"] = self._build_insights()
         return context
 
     def post(self, request: HttpRequest) -> HttpResponse:
@@ -37,3 +42,26 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ListView):
         response = self.render_to_response(self.get_context_data(log_form=form))
         response.status_code = 400
         return response
+
+    def _build_insights(self):
+        now = timezone.now()
+        logs = WorkoutLog.objects.filter(performed_by=self.request.user)
+        recent_7d = logs.filter(completed_at__gte=now - timedelta(days=7))
+        recent_14d_rpe = logs.filter(
+            completed_at__gte=now - timedelta(days=14),
+            perceived_exertion__isnull=False,
+        )
+        recent_30d_communities = logs.filter(
+            completed_at__gte=now - timedelta(days=30),
+            community__isnull=False,
+        )
+        avg_rpe_14d = recent_14d_rpe.aggregate(avg=Avg("perceived_exertion"))["avg"]
+
+        return {
+            "total_logs": logs.count(),
+            "recent_logs_7d": recent_7d.count(),
+            "avg_rpe_14d": avg_rpe_14d,
+            "active_communities_30d": recent_30d_communities.values(
+                "community_id"
+            ).distinct().count(),
+        }

@@ -25,6 +25,8 @@ The original plan lived in session memory and was not visible in the workspace t
 - Reminder dispatch tests cover candidate selection, duplicate prevention, dry-run mode, and delivery status changes.
 - Workout logging UI first slice is implemented with authenticated list/create flow, per-user visibility, and assignment-linked plan selection.
 - Progress routes and templates are connected to primary navigation.
+- Progress insights cards are implemented for recent activity, 14-day average RPE, 30-day community participation, and total logs.
+- Acceptance tests now cover progress insight aggregation and missing-RPE fallback behavior.
 
 ### In progress quality baseline
 - Focused tests exist for community moderation and notifications inbox/read actions.
@@ -38,9 +40,9 @@ The original plan lived in session memory and was not visible in the workspace t
 
 ## Remaining high-value work
 
-### 1. Progress insights iteration
-- Add lightweight progress summaries (for example: recent logs, average perceived exertion trend, and community participation snapshots).
-- Expand acceptance tests for progress filtering and summary correctness.
+### 1. Progress depth iteration
+- Add filtering controls for logs (date window and plan/community filters).
+- Add a lightweight trend view for perceived exertion over time.
 
 ## Suggested next implementation step
-Implement progress insights next with read-only summary cards derived from existing workout logs.
+Implement progress filtering next with acceptance tests for date-window and plan-specific queries.
