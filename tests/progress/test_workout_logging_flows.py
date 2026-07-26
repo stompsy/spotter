@@ -296,3 +296,95 @@ def test_workout_logs_filter_by_plan_and_community(client):
     content = response.content.decode()
     assert "Match" in content
     assert "Other" not in content
+
+
+@pytest.mark.django_db
+def test_progress_rpe_trend_shows_daily_averages_within_window(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="trend_user",
+        email="trend_user@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Trend Plan",
+        slug="trend-plan",
+        created_by=user,
+        is_published=True,
+    )
+    now = timezone.now()
+
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=6,
+        completed_at=now - timedelta(days=1),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=8,
+        completed_at=now - timedelta(days=1, hours=2),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=5,
+        completed_at=now - timedelta(days=4),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=9,
+        completed_at=now - timedelta(days=21),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs"), {"trend_days": "7"})
+
+    assert response.status_code == 200
+    rpe_trend = response.context["rpe_trend"]
+    assert rpe_trend["window_days"] == 7
+    points = rpe_trend["points"]
+    assert len(points) == 2
+    assert points[0]["avg_rpe"] == pytest.approx(5.0)
+    assert points[1]["avg_rpe"] == pytest.approx(7.0)
+    assert points[1]["entry_count"] == 2
+
+
+@pytest.mark.django_db
+def test_progress_rpe_trend_handles_no_recent_rpe_data(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="trend_empty",
+        email="trend_empty@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Trend Empty Plan",
+        slug="trend-empty-plan",
+        created_by=user,
+        is_published=True,
+    )
+
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=None,
+        completed_at=timezone.now() - timedelta(days=2),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=7,
+        completed_at=timezone.now() - timedelta(days=40),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs"), {"trend_days": "14"})
+
+    assert response.status_code == 200
+    rpe_trend = response.context["rpe_trend"]
+    assert rpe_trend["window_days"] == 14
+    assert rpe_trend["points"] == []
+    assert "No recent trend data" in response.content.decode()
