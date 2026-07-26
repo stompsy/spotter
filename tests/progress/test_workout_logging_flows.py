@@ -388,3 +388,98 @@ def test_progress_rpe_trend_handles_no_recent_rpe_data(client):
     assert rpe_trend["window_days"] == 14
     assert rpe_trend["points"] == []
     assert "No recent trend data" in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_progress_rpe_trend_compare_period_increases(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="trend_compare_up",
+        email="trend_compare_up@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Trend Compare Up",
+        slug="trend-compare-up",
+        created_by=user,
+        is_published=True,
+    )
+    now = timezone.now()
+
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=8,
+        completed_at=now - timedelta(days=3),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=7,
+        completed_at=now - timedelta(days=6),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=5,
+        completed_at=now - timedelta(days=10),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=4,
+        completed_at=now - timedelta(days=13),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs"), {"trend_days": "7"})
+
+    assert response.status_code == 200
+    rpe_trend = response.context["rpe_trend"]
+    compare = rpe_trend["compare"]
+    assert compare["current_avg"] == pytest.approx(7.5)
+    assert compare["previous_avg"] == pytest.approx(4.5)
+    assert compare["delta"] == pytest.approx(3.0)
+    assert compare["direction"] == "up"
+    assert "Up vs previous" in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_progress_rpe_trend_points_include_chart_heights(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="trend_chart_points",
+        email="trend_chart_points@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Trend Chart",
+        slug="trend-chart",
+        created_by=user,
+        is_published=True,
+    )
+    now = timezone.now()
+
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=2,
+        completed_at=now - timedelta(days=2),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=10,
+        completed_at=now - timedelta(days=1),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs"), {"trend_days": "7"})
+
+    assert response.status_code == 200
+    points = response.context["rpe_trend"]["points"]
+    assert points[0]["height_pct"] == 20
+    assert points[1]["height_pct"] == 100
+    content = response.content.decode()
+    assert "height: 20%" in content
+    assert "height: 100%" in content

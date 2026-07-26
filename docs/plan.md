@@ -31,6 +31,8 @@ The original plan lived in session memory and was not visible in the workspace t
 - Acceptance tests now cover date-window and plan/community filter correctness.
 - Lightweight perceived-exertion trend output is implemented with daily averages across a selected recent window.
 - Acceptance tests now cover trend aggregation output and empty-state behavior.
+- Chart-style trend rendering is implemented with normalized bar heights for daily RPE points.
+- Compare-period indicators are implemented for current vs previous trend windows.
 
 ### In progress quality baseline
 - Focused tests exist for community moderation and notifications inbox/read actions.
@@ -45,7 +47,7 @@ The original plan lived in session memory and was not visible in the workspace t
 ## Remaining high-value work
 
 ### 1. Progress depth iteration
-- Add simple chart rendering for trend points and compare-period indicators.
+- Add export-ready views (CSV download) for filtered logs and trend points.
 
 ## Suggested next implementation step
-Implement chart-style trend rendering and compare-period summaries on the progress page.
+Implement CSV export for the active filtered logs and trend data views.

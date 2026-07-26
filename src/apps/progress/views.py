@@ -119,7 +119,8 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ListView):
 
     def _build_rpe_trend(self, logs):
         trend_days = self._trend_days_filter()
-        cutoff = timezone.now() - timedelta(days=trend_days)
+        now = timezone.now()
+        cutoff = now - timedelta(days=trend_days)
         points = list(
             logs.filter(
                 completed_at__gte=cutoff,
@@ -130,9 +131,45 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ListView):
             .annotate(avg_rpe=Avg("perceived_exertion"), entry_count=Count("id"))
             .order_by("day")
         )
+
+        for point in points:
+            avg_rpe = point["avg_rpe"]
+            if avg_rpe is None:
+                point["height_pct"] = 0
+            else:
+                point["height_pct"] = int(round(float(avg_rpe) * 10))
+
+        current_avg = logs.filter(
+            completed_at__gte=cutoff,
+            perceived_exertion__isnull=False,
+        ).aggregate(avg=Avg("perceived_exertion"))["avg"]
+        previous_start = cutoff - timedelta(days=trend_days)
+        previous_avg = logs.filter(
+            completed_at__gte=previous_start,
+            completed_at__lt=cutoff,
+            perceived_exertion__isnull=False,
+        ).aggregate(avg=Avg("perceived_exertion"))["avg"]
+
+        delta = None
+        direction = "flat"
+        if current_avg is not None and previous_avg is not None:
+            delta = float(current_avg) - float(previous_avg)
+            if delta > 0:
+                direction = "up"
+            elif delta < 0:
+                direction = "down"
+
+        compare = {
+            "current_avg": current_avg,
+            "previous_avg": previous_avg,
+            "delta": delta,
+            "direction": direction,
+        }
+
         return {
             "window_days": trend_days,
             "points": points,
+            "compare": compare,
         }
 
     def _filter_options(self):
