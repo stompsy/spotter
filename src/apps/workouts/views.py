@@ -64,6 +64,11 @@ class ExerciseListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         candidates, selected_status, selected_confidence_band = self._get_filtered_candidates()
+        candidates = list(candidates)
+        for candidate in candidates:
+            candidate.publish_requirements_missing = _get_publish_requirements_missing(
+                candidate
+            )
         recent_decisions = ExerciseCandidateDecision.objects.select_related(
             "candidate",
             "decided_by",
@@ -164,8 +169,12 @@ class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
 
         try:
             candidate.transition_to(new_status)
-        except ValidationError:
-            messages.error(request, "Candidate status transition is not allowed.")
+        except ValidationError as exc:
+            message = " ".join(exc.messages).strip() if exc.messages else ""
+            messages.error(
+                request,
+                message or "Candidate status transition is not allowed.",
+            )
             return redirect(redirect_target)
 
         candidate.reviewed_by = request.user
@@ -483,3 +492,50 @@ def _extract_candidate_metadata_updates(request: HttpRequest) -> dict[str, objec
     for key in helper_flag_keys:
         updates[key] = key in request.POST
     return updates
+
+
+def _missing_publish_metadata_fields(metadata: object) -> list[str]:
+    metadata_dict = metadata if isinstance(metadata, dict) else {}
+    required_text_fields = [
+        "source_name",
+        "source_url",
+        "attribution_text",
+    ]
+    required_true_flags = [
+        "media_rights_confirmed",
+        "content_rewritten",
+        "safety_reviewed",
+    ]
+
+    missing_text_fields = [
+        key
+        for key in required_text_fields
+        if not str(metadata_dict.get(key, "")).strip()
+    ]
+    missing_true_flags = [
+        key
+        for key in required_true_flags
+        if metadata_dict.get(key) is not True
+    ]
+    return missing_text_fields + missing_true_flags
+
+
+def _get_publish_requirements_missing(candidate: ExerciseCandidate) -> list[str]:
+    missing_items = []
+    if not candidate.source.is_approved:
+        missing_items.append("approved source")
+    if not candidate.source.license_name.strip():
+        missing_items.append("source license")
+
+    metadata_labels = {
+        "source_name": "source name",
+        "source_url": "source URL",
+        "attribution_text": "attribution text",
+        "media_rights_confirmed": "media rights confirmation",
+        "content_rewritten": "content rewritten confirmation",
+        "safety_reviewed": "safety review confirmation",
+    }
+    for field_name in _missing_publish_metadata_fields(candidate.metadata):
+        missing_items.append(metadata_labels[field_name])
+
+    return missing_items

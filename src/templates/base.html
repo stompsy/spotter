@@ -44,6 +44,13 @@
         </nav>
       </header>
       <main class="flex-1 pb-10">
+        {% if messages %}
+          <ul class="mb-4 space-y-2">
+            {% for message in messages %}
+              <li class="rounded-lg border border-brand-neon/40 bg-brand-neon/10 px-4 py-2 text-sm text-zinc-100">{{ message }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
         {% include "partials/guidance_disclaimer.html" %}
         {% block content %}{% endblock %}
       </main>

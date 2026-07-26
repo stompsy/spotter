@@ -458,3 +458,97 @@ def test_review_action_without_helper_fields_does_not_mutate_metadata(client):
         "media_rights_confirmed": True,
         "custom": "value",
     }
+
+
+@pytest.mark.django_db
+def test_exercise_queue_shows_missing_publish_requirements(client):
+    user_model = get_user_model()
+    reviewer = user_model.objects.create_user(
+        username="publish_queue_reviewer",
+        email="publish_queue_reviewer@example.com",
+        password="pw",
+    )
+    source = ExerciseSource.objects.create(
+        name="Missing publish requirements source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/missing-publish-requirements-source.txt",
+        is_approved=False,
+        license_name="",
+    )
+    ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Push-Up",
+        normalized_name="push-up",
+        confidence=0.91,
+        status=CurationStatus.APPROVED,
+        metadata={
+            "source_name": "",
+            "source_url": "",
+            "attribution_text": "",
+            "media_rights_confirmed": False,
+            "content_rewritten": False,
+            "safety_reviewed": False,
+        },
+    )
+
+    client.force_login(reviewer)
+    response = client.get(reverse("workouts:exercises"), {"candidate_status": "approved"})
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Publish requirements missing:" in content
+    assert "approved source" in content
+    assert "source license" in content
+    assert "source URL" in content
+
+
+@pytest.mark.django_db
+def test_publish_guardrail_error_message_is_shown_to_reviewer(client):
+    user_model = get_user_model()
+    reviewer = user_model.objects.create_user(
+        username="publish_guardrail_reviewer",
+        email="publish_guardrail_reviewer@example.com",
+        password="pw",
+    )
+    permission = Permission.objects.get(codename="review_exercisecandidate")
+    reviewer.user_permissions.add(permission)
+
+    source = ExerciseSource.objects.create(
+        name="Guardrail source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/guardrail-source.txt",
+        is_approved=True,
+        license_name="CC BY 4.0",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Burpee",
+        normalized_name="burpee",
+        confidence=0.96,
+        status=CurationStatus.APPROVED,
+        metadata={
+            "source_name": "Guardrail source",
+            "source_url": "",
+            "attribution_text": "Source: Guardrail source",
+            "media_rights_confirmed": True,
+            "content_rewritten": True,
+            "safety_reviewed": True,
+        },
+    )
+
+    client.force_login(reviewer)
+    response = client.post(
+        reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id}),
+        {
+            "action": "publish",
+            "next": reverse("workouts:exercises"),
+        },
+        follow=True,
+    )
+
+    assert response.status_code == 200
+    candidate.refresh_from_db()
+    assert candidate.status == CurationStatus.APPROVED
+    content = response.content.decode("utf-8")
+    assert "Cannot publish candidate without required attribution and safety metadata" in content
+    assert "source_url" in content
