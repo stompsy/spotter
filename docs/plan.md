@@ -57,6 +57,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 27 merged: Phase 2 exercise library search, filter, and sort with duration-fit metadata, queryset controls, UI filter bar, and focused list behavior coverage.
 - Slice 28 merged: Phase 2 copy-safe challenge presets with one-click 30-day core and lunge templates, generated challenge days and linked items, and preset creation coverage.
 - Slice 29 merged: Phase 3 guided plan composer starter templates with reusable short/medium/long insertions, challenge-day starter support, and focused composer workflow coverage.
+- Slice 30 merged: Phase 3 adaptive template suggestions with inventory-aware short/medium/long recommendation logic and guided composer suggestion coverage tests.
 
 ## Phased roadmap
 
@@ -100,7 +101,7 @@ Progress notation used below:
 
 ### Phase 3 - Plan Builder and Challenge Templates
 1. [DONE] ~~Build guided plan composer with reusable cards and day templates.~~
-2. [PENDING] Support short/medium/long templates with suggestion logic.
+2. [DONE] ~~Support short/medium/long templates with suggestion logic.~~
 3. [PENDING] Add challenge wizard (focus area, duration, progression, checkpoints).
 4. [PENDING] Support split completion behavior for daily targets.
 5. [PENDING] Add validation rules for balance, recovery spacing, and warm-up/cooldown coverage.
