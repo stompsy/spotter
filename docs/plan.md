@@ -47,6 +47,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 17 merged: publish-readiness queue filtering, per-requirement reviewer confirmation audit metadata, and in-form policy help panel.
 - Slice 18 merged: Phase 1 taxonomy expansion with movement type, body area, difficulty, and equipment requirement fields plus migration/UI/test coverage.
 - Slice 19 merged: Phase 1 normalized metadata expansion with safety/instruction authoring fields and default prescription ranges by goal.
+- Slice 20 merged: Phase 1 media support with ExerciseMedia model, upload/external URL validation, license metadata, and UI/admin/test coverage.
 
 ## Phased roadmap
 
@@ -74,7 +75,7 @@ Progress notation used below:
 - [DONE] contraindications and safety notes
 - [DONE] setup, execution steps, common mistakes, coaching cues
 - [DONE] default prescription ranges by goal
-3. [PENDING] Add media model support (uploads, external URL, license metadata).
+3. [DONE] ~~Add media model support (uploads, external URL, license metadata).~~
 4. [PENDING] Add plan-type and duration semantics:
 - single-session, challenge, program
 - short, medium, long sessions
