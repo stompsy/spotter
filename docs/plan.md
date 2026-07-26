@@ -51,6 +51,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 21 merged: Phase 1 workout plan semantics with plan type, duration band, and challenge-specific duration/focus fields plus validation and UI/test coverage.
 - Slice 22 merged: Phase 1 challenge-day structure model with day numbering guardrails, optional plan-item day linkage, detail view visibility, and test coverage.
 - Slice 23 merged: Phase 1 optional phased periodization model for program plans with week-range guardrails, admin visibility, detail rendering, and test coverage.
+- Slice 24 merged: Phase 1 workout-role category taxonomy expansion with broader exercise categories, backward-compatible choice preservation, migration, and flow test coverage.
 
 ## Phased roadmap
 
@@ -69,8 +70,8 @@ Progress notation used below:
 3. [DONE] ~~Add exercise guidance disclaimer pattern (informational, not medical advice).~~
 
 ### Phase 1 - Domain Model Expansion (Foundational)
-1. [IN PROGRESS] Extend exercise taxonomy beyond current category enum.
-2. [IN PROGRESS] Add normalized exercise metadata fields:
+1. [DONE] ~~Extend exercise taxonomy beyond current category enum.~~
+2. [DONE] ~~Add normalized exercise metadata fields:~~
 - [DONE] movement type
 - [DONE] body areas
 - [DONE] difficulty level
