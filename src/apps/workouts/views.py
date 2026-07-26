@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
@@ -566,6 +568,10 @@ class WorkoutPlanDetailView(LoginRequiredMixin, DetailView):
         context["assignments"] = self.object.assignments.select_related(
             "assigned_to", "assigned_community"
         ).order_by("-created_at")
+        context["schedule_preview_entries"] = _build_schedule_preview_entries(
+            plan=self.object,
+            user=self.request.user,
+        )
         return context
 
 
@@ -1195,6 +1201,104 @@ def _collect_plan_structure_validation_issues(plan: WorkoutPlan) -> list[str]:
             break
 
     return issues
+
+
+def _build_schedule_preview_entries(plan: WorkoutPlan, user) -> list[dict[str, object]]:
+    today = timezone.localdate()
+    horizon_end = today + timedelta(days=60)
+
+    community_ids = set(
+        CommunityMembership.objects.filter(
+            user=user,
+            status=MembershipStatus.ACTIVE,
+        ).values_list("community_id", flat=True)
+    )
+
+    assignments = list(
+        plan.assignments.filter(
+            Q(assigned_to=user) | Q(assigned_community_id__in=community_ids),
+            starts_on__isnull=False,
+            is_active=True,
+            ended_at__isnull=True,
+        )
+        .select_related("assigned_to", "assigned_community")
+        .order_by("starts_on", "id")
+    )
+
+    if not assignments:
+        return []
+
+    challenge_days = []
+    if plan.plan_type == WorkoutPlanType.CHALLENGE:
+        challenge_days = list(plan.challenge_days.order_by("day_number", "id"))
+
+    entries: list[dict[str, object]] = []
+    for assignment in assignments:
+        starts_on = assignment.starts_on
+        if starts_on is None:
+            continue
+
+        if challenge_days:
+            for day_offset, challenge_day in enumerate(challenge_days):
+                scheduled_date = starts_on + timedelta(days=day_offset)
+                if scheduled_date < today or scheduled_date > horizon_end:
+                    continue
+
+                entries.append(
+                    {
+                        "scheduled_date": scheduled_date,
+                        "assignment": assignment,
+                        "challenge_day": challenge_day,
+                        "source_label": f"Challenge day {challenge_day.day_number}",
+                    }
+                )
+            continue
+
+        cadence_days = assignment.recurs_every_days or 0
+        if cadence_days <= 0:
+            if today <= starts_on <= horizon_end:
+                entries.append(
+                    {
+                        "scheduled_date": starts_on,
+                        "assignment": assignment,
+                        "challenge_day": None,
+                        "source_label": "Scheduled session",
+                    }
+                )
+            continue
+
+        first_occurrence = starts_on
+        if first_occurrence < today:
+            elapsed_days = (today - first_occurrence).days
+            skipped_windows = elapsed_days // cadence_days
+            first_occurrence = first_occurrence + timedelta(
+                days=skipped_windows * cadence_days
+            )
+            if first_occurrence < today:
+                first_occurrence = first_occurrence + timedelta(days=cadence_days)
+
+        scheduled_date = first_occurrence
+        generated_count = 0
+        while scheduled_date <= horizon_end and generated_count < 24:
+            entries.append(
+                {
+                    "scheduled_date": scheduled_date,
+                    "assignment": assignment,
+                    "challenge_day": None,
+                    "source_label": "Scheduled session",
+                }
+            )
+            scheduled_date = scheduled_date + timedelta(days=cadence_days)
+            generated_count += 1
+
+    entries.sort(
+        key=lambda entry: (
+            entry["scheduled_date"],
+            entry["assignment"].id,
+            entry["challenge_day"].day_number if entry["challenge_day"] else 0,
+        )
+    )
+    return entries[:120]
 
 
 def _create_challenge_preset_plan(user, preset_key: str) -> WorkoutPlan:

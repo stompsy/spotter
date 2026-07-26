@@ -187,6 +187,32 @@
       {% else %}
         <p class="mt-3 text-sm text-zinc-300">No assignments yet.</p>
       {% endif %}
+
+      <h3 class="mt-8 font-display text-2xl font-bold uppercase tracking-wide text-brand-neon">Schedule Preview</h3>
+      {% if schedule_preview_entries %}
+        <ul class="mt-4 space-y-2">
+          {% for entry in schedule_preview_entries %}
+            <li class="rounded-xl border border-white/10 bg-black/20 p-3">
+              <p class="text-sm font-semibold text-zinc-100">{{ entry.scheduled_date|date:"Y-m-d" }} • {{ entry.source_label }}</p>
+              <p class="mt-1 text-xs text-zinc-400">
+                {% if entry.challenge_day %}
+                  {% if entry.challenge_day.title %}{{ entry.challenge_day.title }}{% else %}Day {{ entry.challenge_day.day_number }}{% endif %}
+                  {% if entry.challenge_day.target_duration_minutes %} • {{ entry.challenge_day.target_duration_minutes }} min target{% endif %}
+                {% else %}
+                  {% if entry.assignment.assigned_to %}
+                    User: {{ entry.assignment.assigned_to.username }}
+                  {% elif entry.assignment.assigned_community %}
+                    Community: {{ entry.assignment.assigned_community.name }}
+                  {% endif %}
+                  {% if entry.assignment.recurs_every_days %} • every {{ entry.assignment.recurs_every_days }} days{% endif %}
+                {% endif %}
+              </p>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="mt-3 text-sm text-zinc-300">No upcoming schedule entries yet. Add an active assignment start date to generate this preview.</p>
+      {% endif %}
     </article>
 
     <aside class="space-y-4">
