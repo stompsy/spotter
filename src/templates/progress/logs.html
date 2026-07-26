@@ -9,6 +9,45 @@
       <h2 class="mt-2 font-display text-4xl font-bold uppercase tracking-wide text-white">Workout Logs</h2>
       <p class="mt-2 text-sm text-zinc-300">Track effort and notes for completed sessions.</p>
 
+      <section class="mt-5 rounded-xl border border-white/10 bg-black/20 p-4">
+        <form class="grid gap-3 sm:grid-cols-4" method="get">
+          <label class="text-xs uppercase tracking-wide text-zinc-300">
+            Date window
+            <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" name="days">
+              <option value="all" {% if selected_filters.days == 'all' %}selected{% endif %}>All</option>
+              {% for days in filter_options.days %}
+                <option value="{{ days }}" {% if selected_filters.days == days|stringformat:'s' %}selected{% endif %}>Last {{ days }} days</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label class="text-xs uppercase tracking-wide text-zinc-300">
+            Plan
+            <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" name="plan">
+              <option value="">All plans</option>
+              {% for plan in filter_options.plans %}
+                <option value="{{ plan.id }}" {% if selected_filters.plan == plan.id|stringformat:'s' %}selected{% endif %}>{{ plan.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label class="text-xs uppercase tracking-wide text-zinc-300">
+            Community
+            <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" name="community">
+              <option value="">All communities</option>
+              {% for community in filter_options.communities %}
+                <option value="{{ community.id }}" {% if selected_filters.community == community.id|stringformat:'s' %}selected{% endif %}>{{ community.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <div class="flex items-end gap-2">
+            <button class="inline-flex rounded-full bg-brand-neon px-4 py-2 text-sm font-bold uppercase tracking-wide text-brand-ink" type="submit">Apply</button>
+            <a class="inline-flex rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-bold uppercase tracking-wide text-zinc-200 hover:border-brand-neon/60 hover:text-brand-neon" href="{% url 'progress:logs' %}">Reset</a>
+          </div>
+        </form>
+      </section>
+
       <section class="mt-5 grid gap-3 sm:grid-cols-2">
         <article class="rounded-xl border border-white/10 bg-black/20 p-4">
           <p class="text-xs uppercase tracking-wide text-zinc-400">Recent Logs (7d)</p>

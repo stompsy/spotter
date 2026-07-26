@@ -27,6 +27,8 @@ The original plan lived in session memory and was not visible in the workspace t
 - Progress routes and templates are connected to primary navigation.
 - Progress insights cards are implemented for recent activity, 14-day average RPE, 30-day community participation, and total logs.
 - Acceptance tests now cover progress insight aggregation and missing-RPE fallback behavior.
+- Progress filtering controls are implemented for date window and plan/community scoped log queries.
+- Acceptance tests now cover date-window and plan/community filter correctness.
 
 ### In progress quality baseline
 - Focused tests exist for community moderation and notifications inbox/read actions.
@@ -41,8 +43,7 @@ The original plan lived in session memory and was not visible in the workspace t
 ## Remaining high-value work
 
 ### 1. Progress depth iteration
-- Add filtering controls for logs (date window and plan/community filters).
 - Add a lightweight trend view for perceived exertion over time.
 
 ## Suggested next implementation step
-Implement progress filtering next with acceptance tests for date-window and plan-specific queries.
+Implement a lightweight perceived-exertion trend view with acceptance tests for recent-window trend output.

@@ -196,3 +196,103 @@ def test_progress_insights_show_none_when_recent_rpe_missing(client):
     insights = response.context["insights"]
     assert insights["avg_rpe_14d"] is None
     assert "No RPE yet" in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_workout_logs_filter_by_date_window(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="filter_window",
+        email="filter_window@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Window Plan",
+        slug="window-plan",
+        created_by=user,
+        is_published=True,
+    )
+    recent_log = WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        notes="Recent",
+        completed_at=timezone.now() - timedelta(days=3),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        notes="Older",
+        completed_at=timezone.now() - timedelta(days=12),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs"), {"days": "7"})
+
+    assert response.status_code == 200
+    logs = list(response.context["logs"])
+    assert logs == [recent_log]
+    content = response.content.decode()
+    assert "Recent" in content
+    assert "Older" not in content
+
+
+@pytest.mark.django_db
+def test_workout_logs_filter_by_plan_and_community(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="filter_scope",
+        email="filter_scope@example.com",
+        password="pw",
+    )
+    community_a = Community.objects.create(
+        name="Scope A",
+        slug="scope-a",
+        created_by=user,
+    )
+    community_b = Community.objects.create(
+        name="Scope B",
+        slug="scope-b",
+        created_by=user,
+    )
+    plan_a = WorkoutPlan.objects.create(
+        name="Scope Plan A",
+        slug="scope-plan-a",
+        created_by=user,
+        community=community_a,
+        is_published=True,
+    )
+    plan_b = WorkoutPlan.objects.create(
+        name="Scope Plan B",
+        slug="scope-plan-b",
+        created_by=user,
+        community=community_b,
+        is_published=True,
+    )
+    match_log = WorkoutLog.objects.create(
+        plan=plan_a,
+        community=community_a,
+        performed_by=user,
+        notes="Match",
+    )
+    WorkoutLog.objects.create(
+        plan=plan_b,
+        community=community_b,
+        performed_by=user,
+        notes="Other",
+    )
+
+    client.force_login(user)
+    response = client.get(
+        reverse("progress:logs"),
+        {
+            "plan": str(plan_a.id),
+            "community": str(community_a.id),
+        },
+    )
+
+    assert response.status_code == 200
+    logs = list(response.context["logs"])
+    assert logs == [match_log]
+    content = response.content.decode()
+    assert "Match" in content
+    assert "Other" not in content
