@@ -109,6 +109,13 @@ class WorkoutPlanDurationBand(models.TextChoices):
     LONG = "long", "Long"
 
 
+class ExerciseDurationFit(models.TextChoices):
+    UNSPECIFIED = "unspecified", "Unspecified"
+    SHORT = "short", "Short session"
+    MEDIUM = "medium", "Medium session"
+    LONG = "long", "Long session"
+
+
 class Exercise(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -132,6 +139,11 @@ class Exercise(models.Model):
         max_length=32,
         choices=ExerciseEquipmentRequirement.choices,
         default=ExerciseEquipmentRequirement.UNSPECIFIED,
+    )
+    duration_fit = models.CharField(
+        max_length=16,
+        choices=ExerciseDurationFit.choices,
+        default=ExerciseDurationFit.UNSPECIFIED,
     )
     description = models.TextField(blank=True)
     instructions = models.TextField(blank=True)

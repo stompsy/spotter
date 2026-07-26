@@ -11,6 +11,72 @@
         <p class="mt-2 text-sm text-zinc-300">Maintain the shared catalog used by plan templates and assignments.</p>
       </header>
 
+      <form class="mb-6 rounded-2xl border border-white/10 bg-black/20 p-4" method="get" action="{% url 'workouts:exercises' %}">
+        <div class="grid gap-3 lg:grid-cols-3">
+          <div class="lg:col-span-3">
+            <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="exercise_q">Search</label>
+            <input class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="exercise_q" name="q" value="{{ selected_exercise_query }}" placeholder="Search by name, description, instructions, or cues">
+          </div>
+          <div>
+            <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="movement_type_filter">Movement type</label>
+            <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="movement_type_filter" name="movement_type">
+              <option value="all">All movement types</option>
+              {% for value, label in exercise_movement_type_choices %}
+                <option value="{{ value }}" {% if value == selected_movement_type %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="primary_body_area_filter">Body area</label>
+            <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="primary_body_area_filter" name="primary_body_area">
+              <option value="all">All body areas</option>
+              {% for value, label in exercise_body_area_choices %}
+                <option value="{{ value }}" {% if value == selected_primary_body_area %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="equipment_requirement_filter">Equipment</label>
+            <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="equipment_requirement_filter" name="equipment_requirement">
+              <option value="all">All equipment</option>
+              {% for value, label in exercise_equipment_requirement_choices %}
+                <option value="{{ value }}" {% if value == selected_equipment_requirement %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="difficulty_level_filter">Difficulty</label>
+            <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="difficulty_level_filter" name="difficulty_level">
+              <option value="all">All difficulty levels</option>
+              {% for value, label in exercise_difficulty_level_choices %}
+                <option value="{{ value }}" {% if value == selected_difficulty_level %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="duration_fit_filter">Duration fit</label>
+            <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="duration_fit_filter" name="duration_fit">
+              <option value="all">All duration fits</option>
+              {% for value, label in exercise_duration_fit_choices %}
+                <option value="{{ value }}" {% if value == selected_duration_fit %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="exercise_sort">Sort</label>
+            <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="exercise_sort" name="sort">
+              {% for option in exercise_sort_options %}
+                <option value="{{ option.value }}" {% if option.value == selected_exercise_sort %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <button class="inline-flex rounded-full border border-brand-neon/60 bg-brand-neon/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand-neon" type="submit">Apply library filters</button>
+          <a class="inline-flex rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-bold uppercase tracking-wide text-zinc-200" href="{% url 'workouts:exercises' %}">Reset</a>
+        </div>
+      </form>
+
       {% if exercises %}
         <ul class="space-y-3">
           {% for exercise in exercises %}
@@ -44,6 +110,7 @@
                     <span class="rounded-full border border-sky-300/40 bg-sky-300/10 px-2 py-1 text-sky-100">Primary area: {{ exercise.get_primary_body_area_display }}</span>
                     <span class="rounded-full border border-fuchsia-300/30 bg-fuchsia-300/10 px-2 py-1 text-fuchsia-100">Level: {{ exercise.get_difficulty_level_display }}</span>
                     <span class="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-zinc-200">Equipment: {{ exercise.get_equipment_requirement_display }}</span>
+                    <span class="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-2 py-1 text-emerald-100">Duration fit: {{ exercise.get_duration_fit_display }}</span>
                   </div>
 
                   <p class="mt-4 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500">Authoring notes</p>
@@ -216,6 +283,14 @@
                     </select>
                   </div>
                   <div>
+                    <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="duration_fit_{{ exercise.id }}">Duration fit</label>
+                    <select class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="duration_fit_{{ exercise.id }}" name="duration_fit">
+                      {% for value, label in exercise_duration_fit_choices %}
+                        <option value="{{ value }}" {% if value == exercise.duration_fit %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div>
                     <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="description_{{ exercise.id }}">Description</label>
                     <textarea class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="description_{{ exercise.id }}" name="description" rows="2">{{ exercise.description }}</textarea>
                   </div>
@@ -311,6 +386,10 @@
               <div>
                 <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="id_equipment_requirement">Equipment requirement</label>
                 {{ exercise_form.equipment_requirement }}
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="id_duration_fit">Duration fit</label>
+                {{ exercise_form.duration_fit }}
               </div>
             </div>
           </div>

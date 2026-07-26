@@ -19,6 +19,7 @@ class ExerciseForm(forms.ModelForm):
             "primary_body_area",
             "difficulty_level",
             "equipment_requirement",
+            "duration_fit",
             "description",
             "instructions",
             "contraindications",

@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -29,6 +29,7 @@ from .models import (
     ExerciseCandidateDecision,
     ExerciseCategory,
     ExerciseDifficultyLevel,
+    ExerciseDurationFit,
     ExerciseEquipmentRequirement,
     ExerciseMediaType,
     ExerciseMovementType,
@@ -43,7 +44,73 @@ class ExerciseListView(LoginRequiredMixin, ListView):
     context_object_name = "exercises"
 
     def get_queryset(self):
-        return Exercise.objects.prefetch_related("media_items").order_by("name")
+        queryset = Exercise.objects.prefetch_related("media_items")
+
+        search_query = self.request.GET.get("q", "").strip()
+        if search_query:
+            queryset = queryset.filter(
+                Q(name__icontains=search_query)
+                | Q(description__icontains=search_query)
+                | Q(instructions__icontains=search_query)
+                | Q(coaching_cues__icontains=search_query)
+            )
+
+        filter_specs = {
+            "movement_type": (
+                "movement_type",
+                {choice[0] for choice in ExerciseMovementType.choices},
+            ),
+            "primary_body_area": (
+                "primary_body_area",
+                {choice[0] for choice in ExerciseBodyArea.choices},
+            ),
+            "equipment_requirement": (
+                "equipment_requirement",
+                {choice[0] for choice in ExerciseEquipmentRequirement.choices},
+            ),
+            "difficulty_level": (
+                "difficulty_level",
+                {choice[0] for choice in ExerciseDifficultyLevel.choices},
+            ),
+            "duration_fit": (
+                "duration_fit",
+                {choice[0] for choice in ExerciseDurationFit.choices},
+            ),
+        }
+        for query_param, (field_name, allowed_values) in filter_specs.items():
+            selected_value = self.request.GET.get(query_param, "all").strip().lower()
+            if selected_value != "all" and selected_value in allowed_values:
+                queryset = queryset.filter(**{field_name: selected_value})
+
+        sort = self.request.GET.get("sort", "name_asc").strip().lower()
+        if sort == "name_desc":
+            return queryset.order_by("-name")
+        if sort == "movement_type":
+            return queryset.order_by("movement_type", "name")
+        if sort == "body_area":
+            return queryset.order_by("primary_body_area", "name")
+        if sort == "equipment":
+            return queryset.order_by("equipment_requirement", "name")
+        if sort == "difficulty":
+            difficulty_order = Case(
+                When(difficulty_level=ExerciseDifficultyLevel.BEGINNER, then=Value(0)),
+                When(difficulty_level=ExerciseDifficultyLevel.INTERMEDIATE, then=Value(1)),
+                When(difficulty_level=ExerciseDifficultyLevel.ADVANCED, then=Value(2)),
+                default=Value(3),
+                output_field=IntegerField(),
+            )
+            return queryset.order_by(difficulty_order, "name")
+        if sort == "duration_fit":
+            duration_order = Case(
+                When(duration_fit=ExerciseDurationFit.SHORT, then=Value(0)),
+                When(duration_fit=ExerciseDurationFit.MEDIUM, then=Value(1)),
+                When(duration_fit=ExerciseDurationFit.LONG, then=Value(2)),
+                default=Value(3),
+                output_field=IntegerField(),
+            )
+            return queryset.order_by(duration_order, "name")
+
+        return queryset.order_by("name")
 
     def _get_filtered_candidates(self):
         status = self.request.GET.get("candidate_status", "all").strip().lower()
@@ -118,7 +185,36 @@ class ExerciseListView(LoginRequiredMixin, ListView):
         context["exercise_equipment_requirement_choices"] = (
             ExerciseEquipmentRequirement.choices
         )
+        context["exercise_duration_fit_choices"] = ExerciseDurationFit.choices
         context["exercise_media_type_choices"] = ExerciseMediaType.choices
+        context["selected_exercise_query"] = self.request.GET.get("q", "").strip()
+        context["selected_movement_type"] = self.request.GET.get(
+            "movement_type", "all"
+        ).strip().lower()
+        context["selected_primary_body_area"] = self.request.GET.get(
+            "primary_body_area", "all"
+        ).strip().lower()
+        context["selected_equipment_requirement"] = self.request.GET.get(
+            "equipment_requirement", "all"
+        ).strip().lower()
+        context["selected_difficulty_level"] = self.request.GET.get(
+            "difficulty_level", "all"
+        ).strip().lower()
+        context["selected_duration_fit"] = self.request.GET.get(
+            "duration_fit", "all"
+        ).strip().lower()
+        context["selected_exercise_sort"] = self.request.GET.get(
+            "sort", "name_asc"
+        ).strip().lower()
+        context["exercise_sort_options"] = [
+            {"value": "name_asc", "label": "Name A-Z"},
+            {"value": "name_desc", "label": "Name Z-A"},
+            {"value": "movement_type", "label": "Movement type"},
+            {"value": "body_area", "label": "Body area"},
+            {"value": "equipment", "label": "Equipment"},
+            {"value": "difficulty", "label": "Difficulty"},
+            {"value": "duration_fit", "label": "Duration fit"},
+        ]
         context["can_review_candidates"] = _can_review_candidates(self.request.user)
         context["candidates"] = candidates
         context["recent_candidate_decisions"] = recent_decisions

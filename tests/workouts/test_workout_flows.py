@@ -13,6 +13,7 @@ from apps.workouts.models import (
     ExerciseCandidate,
     ExerciseCategory,
     ExerciseDifficultyLevel,
+    ExerciseDurationFit,
     ExerciseEquipmentRequirement,
     ExerciseMedia,
     ExerciseMovementType,
@@ -439,6 +440,7 @@ def test_user_can_create_and_archive_exercise(client):
             "primary_body_area": ExerciseBodyArea.LOWER_BODY,
             "difficulty_level": ExerciseDifficultyLevel.BEGINNER,
             "equipment_requirement": ExerciseEquipmentRequirement.NONE,
+            "duration_fit": ExerciseDurationFit.SHORT,
             "description": "Multi-direction lunge prep",
             "instructions": "2 sets each direction",
             "contraindications": "Acute knee pain",
@@ -462,6 +464,7 @@ def test_user_can_create_and_archive_exercise(client):
     assert exercise.primary_body_area == ExerciseBodyArea.LOWER_BODY
     assert exercise.difficulty_level == ExerciseDifficultyLevel.BEGINNER
     assert exercise.equipment_requirement == ExerciseEquipmentRequirement.NONE
+    assert exercise.duration_fit == ExerciseDurationFit.SHORT
     assert exercise.contraindications == "Acute knee pain"
     assert exercise.safety_notes == "Keep knee tracking over toes"
     assert exercise.setup_steps == "Stand tall and brace core"
@@ -520,6 +523,7 @@ def test_user_can_update_exercise_taxonomy_fields(client):
             "primary_body_area": ExerciseBodyArea.SHOULDERS,
             "difficulty_level": ExerciseDifficultyLevel.ADVANCED,
             "equipment_requirement": ExerciseEquipmentRequirement.SPECIALIZED,
+            "duration_fit": ExerciseDurationFit.MEDIUM,
             "description": "Updated",
             "instructions": "Updated",
             "contraindications": "Updated contraindications",
@@ -541,6 +545,7 @@ def test_user_can_update_exercise_taxonomy_fields(client):
     assert exercise.primary_body_area == ExerciseBodyArea.SHOULDERS
     assert exercise.difficulty_level == ExerciseDifficultyLevel.ADVANCED
     assert exercise.equipment_requirement == ExerciseEquipmentRequirement.SPECIALIZED
+    assert exercise.duration_fit == ExerciseDurationFit.MEDIUM
     assert exercise.contraindications == "Updated contraindications"
     assert exercise.safety_notes == "Updated safety"
     assert exercise.setup_steps == "Updated setup"
@@ -1180,6 +1185,7 @@ def test_exercise_library_displays_rich_card_sections_and_authoring_form(client)
         primary_body_area=ExerciseBodyArea.LOWER_BODY,
         difficulty_level=ExerciseDifficultyLevel.INTERMEDIATE,
         equipment_requirement=ExerciseEquipmentRequirement.MINIMAL,
+        duration_fit=ExerciseDurationFit.MEDIUM,
         description="Controlled squat variation.",
         instructions="Lower with a three count and stand with intent.",
         safety_notes="Brace and keep heels grounded.",
@@ -1211,6 +1217,72 @@ def test_exercise_library_displays_rich_card_sections_and_authoring_form(client)
     assert "Authoring" in content
     assert "Primary area: Lower body" in content
     assert "Level: Intermediate" in content
+    assert "Duration fit: Medium session" in content
     assert "Safe-form instructions" in content
     assert "Open external media" in content
     assert "Photo by Example Coach" in content
+
+
+@pytest.mark.django_db
+def test_exercise_library_filters_searches_and_sorts_results(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="exercise_library_filter_user",
+        email="exercise_library_filter_user@example.com",
+        password="pw",
+    )
+    Exercise.objects.create(
+        name="Sprint Step-Up",
+        slug="sprint-step-up",
+        category=ExerciseCategory.CONDITIONING,
+        movement_type=ExerciseMovementType.LUNGE,
+        primary_body_area=ExerciseBodyArea.LOWER_BODY,
+        difficulty_level=ExerciseDifficultyLevel.BEGINNER,
+        equipment_requirement=ExerciseEquipmentRequirement.NONE,
+        duration_fit=ExerciseDurationFit.SHORT,
+        description="Quick lower-body conditioning.",
+        is_active=True,
+    )
+    Exercise.objects.create(
+        name="Tempo Squat",
+        slug="tempo-squat-filter",
+        category=ExerciseCategory.STRENGTH,
+        movement_type=ExerciseMovementType.SQUAT,
+        primary_body_area=ExerciseBodyArea.LOWER_BODY,
+        difficulty_level=ExerciseDifficultyLevel.INTERMEDIATE,
+        equipment_requirement=ExerciseEquipmentRequirement.MINIMAL,
+        duration_fit=ExerciseDurationFit.MEDIUM,
+        description="Controlled squat work.",
+        is_active=True,
+    )
+    Exercise.objects.create(
+        name="Carry March",
+        slug="carry-march",
+        category=ExerciseCategory.CONDITIONING,
+        movement_type=ExerciseMovementType.CARRY,
+        primary_body_area=ExerciseBodyArea.FULL_BODY,
+        difficulty_level=ExerciseDifficultyLevel.ADVANCED,
+        equipment_requirement=ExerciseEquipmentRequirement.SPECIALIZED,
+        duration_fit=ExerciseDurationFit.LONG,
+        description="Loaded carry progression.",
+        is_active=True,
+    )
+
+    client.force_login(user)
+    response = client.get(
+        reverse("workouts:exercises"),
+        {
+            "q": "squat",
+            "primary_body_area": ExerciseBodyArea.LOWER_BODY,
+            "difficulty_level": ExerciseDifficultyLevel.INTERMEDIATE,
+            "duration_fit": ExerciseDurationFit.MEDIUM,
+            "sort": "duration_fit",
+        },
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Tempo Squat" in content
+    assert "Sprint Step-Up" not in content
+    assert "Carry March" not in content
+    assert "Apply library filters" in content
