@@ -5,6 +5,8 @@ from datetime import timedelta
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
+from django.core import mail
+from django.test import override_settings
 from django.utils import timezone
 
 from apps.notifications.models import DeliveryStatus, NotificationEvent, NotificationType
@@ -12,7 +14,8 @@ from apps.workouts.models import WorkoutPlan, WorkoutPlanAssignment
 
 
 @pytest.mark.django_db
-def test_send_reminders_creates_event_for_due_active_assignment():
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+def test_send_reminders_creates_sent_event_for_due_active_assignment():
     user_model = get_user_model()
     coach = user_model.objects.create_user(
         username="coach_reminder",
@@ -43,8 +46,11 @@ def test_send_reminders_creates_event_for_due_active_assignment():
         recipient=athlete,
         notification_type=NotificationType.REMINDER,
     )
-    assert event.delivery_status == DeliveryStatus.PENDING
+    assert event.delivery_status == DeliveryStatus.SENT
+    assert event.sent_at is not None
     assert event.payload["assignment_id"] == assignment.id
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [athlete.email]
 
 
 @pytest.mark.django_db
@@ -155,3 +161,44 @@ def test_send_reminders_dry_run_creates_no_events():
     call_command("send_reminders", dry_run=True)
 
     assert NotificationEvent.objects.filter(notification_type=NotificationType.REMINDER).count() == 0
+
+
+@pytest.mark.django_db
+def test_send_reminders_marks_failed_when_email_send_raises(monkeypatch):
+    user_model = get_user_model()
+    coach = user_model.objects.create_user(
+        username="coach_fail",
+        email="coach_fail@example.com",
+        password="pw",
+    )
+    athlete = user_model.objects.create_user(
+        username="athlete_fail",
+        email="athlete_fail@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Failure Plan",
+        slug="failure-plan",
+        created_by=coach,
+    )
+    WorkoutPlanAssignment.objects.create(
+        plan=plan,
+        assigned_to=athlete,
+        starts_on=timezone.localdate(),
+        is_active=True,
+    )
+
+    def fake_send_mail(*args, **kwargs):
+        raise RuntimeError("smtp unavailable")
+
+    monkeypatch.setattr(
+        "apps.core.management.commands.send_reminders.send_mail",
+        fake_send_mail,
+    )
+
+    call_command("send_reminders")
+
+    event = NotificationEvent.objects.get(notification_type=NotificationType.REMINDER)
+    assert event.delivery_status == DeliveryStatus.FAILED
+    assert event.sent_at is None
+    assert event.payload["delivery_error"] == "smtp unavailable"

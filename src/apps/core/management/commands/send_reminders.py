@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from django.conf import settings
+from django.core.mail import send_mail
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 from django.utils import timezone
@@ -35,6 +37,8 @@ class Command(BaseCommand):
         candidates = self._candidate_assignments(today=today, due_by=due_by)
 
         created_count = 0
+        sent_count = 0
+        failed_count = 0
         for assignment in candidates:
             recipient = assignment.assigned_to
             if recipient is None:
@@ -69,7 +73,7 @@ class Command(BaseCommand):
             if duplicate_exists:
                 continue
 
-            NotificationEvent.objects.create(
+            event = NotificationEvent.objects.create(
                 recipient=recipient,
                 notification_type=NotificationType.REMINDER,
                 subject=subject,
@@ -79,11 +83,57 @@ class Command(BaseCommand):
             )
             created_count += 1
 
+            if not recipient.email:
+                event.delivery_status = DeliveryStatus.FAILED
+                event.payload = {
+                    **event.payload,
+                    "delivery_error": "Recipient does not have an email address.",
+                }
+                event.save(update_fields=["delivery_status", "payload"])
+                failed_count += 1
+                continue
+
+            try:
+                delivered = send_mail(
+                    subject=subject,
+                    message=body,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[recipient.email],
+                    fail_silently=False,
+                )
+            except Exception as exc:  # pragma: no cover - explicitly tested via monkeypatch
+                event.delivery_status = DeliveryStatus.FAILED
+                event.payload = {
+                    **event.payload,
+                    "delivery_error": str(exc),
+                }
+                event.save(update_fields=["delivery_status", "payload"])
+                failed_count += 1
+                continue
+
+            if delivered:
+                event.delivery_status = DeliveryStatus.SENT
+                event.sent_at = timezone.now()
+                event.save(update_fields=["delivery_status", "sent_at"])
+                sent_count += 1
+            else:
+                event.delivery_status = DeliveryStatus.FAILED
+                event.payload = {
+                    **event.payload,
+                    "delivery_error": "Email backend reported zero messages sent.",
+                }
+                event.save(update_fields=["delivery_status", "payload"])
+                failed_count += 1
+
         if dry_run:
             self.stdout.write(self.style.WARNING("Dry run complete."))
             return
 
-        self.stdout.write(self.style.SUCCESS(f"Created {created_count} reminder notification(s)."))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Created {created_count} reminder notification(s), sent {sent_count}, failed {failed_count}."
+            )
+        )
 
     @staticmethod
     def _candidate_assignments(today, due_by):

@@ -21,6 +21,8 @@ The original plan lived in session memory and was not visible in the workspace t
 - Admin registrations are added for users and domain models.
 - Dev seed command exists and is idempotent.
 - Superuser guard command exists for deploy automation.
+- Reminder delivery path is implemented with scheduled dispatch, NotificationEvent generation, email send attempts, and sent/failed delivery status transitions.
+- Reminder dispatch tests cover candidate selection, duplicate prevention, dry-run mode, and delivery status changes.
 
 ### In progress quality baseline
 - Focused tests exist for community moderation and notifications inbox/read actions.
@@ -28,14 +30,9 @@ The original plan lived in session memory and was not visible in the workspace t
 
 ## Remaining high-value work
 
-### 1. Reminder delivery path
-- Add a management command for scheduled reminder dispatch.
-- Integrate NotificationEvent generation and email send behavior.
-- Add tests for reminder candidate selection and delivery status changes.
-
-### 2. End-to-end hardening
+### 1. End-to-end hardening
 - Add smoke tests for signup, join, approve/reject, notifications, and workout logging paths.
 - Add deployment runbook steps for migrate, ensure_superuser, seed policy, and health checks.
 
 ## Suggested next implementation step
-Implement reminder delivery next with a scheduled management command and NotificationEvent delivery transitions. This will connect assignment/guidance activity to proactive user engagement.
+Implement end-to-end hardening next with smoke tests and a deployment runbook so core flows remain stable in CI and release operations.
