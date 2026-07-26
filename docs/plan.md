@@ -55,6 +55,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 25 merged: Phase 2 exercise library UI upgrade with richer exercise cards, grouped authoring form sections, clearer library state badges, and page-render coverage.
 - Slice 26 merged: Phase 2 discovery-ready exercise cards with stronger body-area and difficulty badges, highlighted caution cues, safe-form instruction labeling, and richer media attribution display.
 - Slice 27 merged: Phase 2 exercise library search, filter, and sort with duration-fit metadata, queryset controls, UI filter bar, and focused list behavior coverage.
+- Slice 28 merged: Phase 2 copy-safe challenge presets with one-click 30-day core and lunge templates, generated challenge days and linked items, and preset creation coverage.
 
 ## Phased roadmap
 
@@ -94,7 +95,7 @@ Progress notation used below:
 1. [DONE] ~~Upgrade exercise management UI for rich card creation/editing and moderation state.~~
 2. [DONE] ~~Render exercise cards with image/media, body-area badges, safe-form instructions, common prescriptions, and caution notes.~~
 3. [DONE] ~~Add search/filter/sort by movement type, body area, equipment, level, and duration fit.~~
-4. [PENDING] Add copy-safe challenge presets (Abs 30-day, Lunge 30-day first).
+4. [DONE] ~~Add copy-safe challenge presets (Abs 30-day, Lunge 30-day first).~~
 
 ### Phase 3 - Plan Builder and Challenge Templates
 1. [PENDING] Build guided plan composer with reusable cards and day templates.
