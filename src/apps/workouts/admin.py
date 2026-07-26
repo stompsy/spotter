@@ -1,6 +1,8 @@
+from django import forms
 from django.contrib import admin
 
 from .models import (
+    CurationStatus,
     Exercise,
     ExerciseCandidate,
     ExerciseCandidateDecision,
@@ -11,6 +13,47 @@ from .models import (
     WorkoutPlanAssignment,
     WorkoutPlanItem,
 )
+
+
+class ExerciseCandidateAdminForm(forms.ModelForm):
+    class Meta:
+        model = ExerciseCandidate
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["metadata"].help_text = (
+            "Publish requires metadata keys: source_name, source_url, attribution_text, "
+            "media_rights_confirmed=true, content_rewritten=true, safety_reviewed=true."
+        )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("status") != CurationStatus.PUBLISHED:
+            return cleaned_data
+
+        source = cleaned_data.get("source")
+        if source is None:
+            return cleaned_data
+
+        if not source.is_approved or not source.license_name.strip():
+            raise forms.ValidationError(
+                "Cannot publish candidate without an approved source and license metadata"
+            )
+
+        candidate = ExerciseCandidate(
+            source=source,
+            raw_name=cleaned_data.get("raw_name") or "",
+            normalized_name=cleaned_data.get("normalized_name") or "",
+            status=cleaned_data["status"],
+            metadata=cleaned_data.get("metadata") or {},
+        )
+        try:
+            candidate.validate_publish_metadata()
+        except forms.ValidationError as exc:
+            self.add_error("metadata", exc)
+
+        return cleaned_data
 
 
 @admin.register(Exercise)
@@ -49,6 +92,7 @@ class ExerciseSourceAdmin(admin.ModelAdmin):
 
 @admin.register(ExerciseCandidate)
 class ExerciseCandidateAdmin(admin.ModelAdmin):
+    form = ExerciseCandidateAdminForm
     list_display = (
         "normalized_name",
         "raw_name",
