@@ -84,6 +84,13 @@ Do not ingest or publish:
 
 - Candidate status must pass workflow: draft -> needs_review -> approved -> published.
 - Publishing requires approved source and non-empty license metadata.
+- Publishing also requires candidate metadata keys:
+	- source_name
+	- source_url
+	- attribution_text
+	- media_rights_confirmed = true
+	- content_rewritten = true
+	- safety_reviewed = true
 - Reviewer decision events must be preserved in immutable audit history.
 
 ## Guidance Disclaimer Pattern

@@ -179,6 +179,14 @@ def test_exercise_candidate_publish_requires_approved_source_and_license():
         raw_name="Forward Lunges",
         normalized_name="forward lunge",
         status=CurationStatus.APPROVED,
+        metadata={
+            "source_name": "Publish gate source",
+            "source_url": "https://example.com/publish-gate-source",
+            "attribution_text": "Source: Publish gate source",
+            "media_rights_confirmed": True,
+            "content_rewritten": True,
+            "safety_reviewed": True,
+        },
     )
 
     with pytest.raises(ValidationError):
@@ -190,6 +198,40 @@ def test_exercise_candidate_publish_requires_approved_source_and_license():
 
     candidate.transition_to(CurationStatus.PUBLISHED)
     candidate.save(update_fields=["status", "updated_at"])
+    candidate.refresh_from_db()
+    assert candidate.status == CurationStatus.PUBLISHED
+
+
+@pytest.mark.django_db
+def test_exercise_candidate_publish_requires_attribution_and_safety_metadata():
+    source = ExerciseSource.objects.create(
+        name="Metadata gate source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/metadata-gate-source.txt",
+        is_approved=True,
+        license_name="CC BY 4.0",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Forward Lunges",
+        normalized_name="forward lunge",
+        status=CurationStatus.APPROVED,
+        metadata={},
+    )
+
+    with pytest.raises(ValidationError):
+        candidate.transition_to(CurationStatus.PUBLISHED)
+
+    candidate.metadata = {
+        "source_name": "Metadata gate source",
+        "source_url": "https://example.com/metadata-gate-source",
+        "attribution_text": "Source: Metadata gate source",
+        "media_rights_confirmed": True,
+        "content_rewritten": True,
+        "safety_reviewed": True,
+    }
+    candidate.transition_to(CurationStatus.PUBLISHED)
+    candidate.save(update_fields=["status", "metadata", "updated_at"])
     candidate.refresh_from_db()
     assert candidate.status == CurationStatus.PUBLISHED
 
@@ -322,6 +364,14 @@ def test_exercise_candidate_review_action_persists_reviewer_metadata(client):
         raw_name="Forward Lunges",
         normalized_name="forward lunge",
         status=CurationStatus.APPROVED,
+        metadata={
+            "source_name": "Publish allowed source",
+            "source_url": "https://example.com/publish-allowed-source",
+            "attribution_text": "Source: Publish allowed source",
+            "media_rights_confirmed": True,
+            "content_rewritten": True,
+            "safety_reviewed": True,
+        },
     )
 
     client.force_login(user)
