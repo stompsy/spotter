@@ -122,6 +122,41 @@
           {% endfor %}
         </div>
       </section>
+
+      <section class="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
+        <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Challenge wizard</p>
+        <h4 class="mt-2 font-display text-lg font-bold uppercase tracking-wide text-white">Build a custom challenge</h4>
+        <form class="mt-4 space-y-3" method="post">
+          <input type="hidden" name="action" value="challenge_wizard">
+          {% csrf_token %}
+          {% if challenge_wizard_form.non_field_errors %}
+            <div class="rounded-xl border border-rose-300/40 bg-rose-300/10 px-3 py-2 text-sm text-rose-100">{{ challenge_wizard_form.non_field_errors }}</div>
+          {% endif %}
+          <div>
+            <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="id_focus_area">Focus area</label>
+            {{ challenge_wizard_form.focus_area }}
+            {% if challenge_wizard_form.focus_area.errors %}<p class="mt-1 text-xs text-rose-200">{{ challenge_wizard_form.focus_area.errors|join:', ' }}</p>{% endif %}
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="id_duration_days">Duration (days)</label>
+              {{ challenge_wizard_form.duration_days }}
+              {% if challenge_wizard_form.duration_days.errors %}<p class="mt-1 text-xs text-rose-200">{{ challenge_wizard_form.duration_days.errors|join:', ' }}</p>{% endif %}
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="id_checkpoint_interval_days">Checkpoint every (days)</label>
+              {{ challenge_wizard_form.checkpoint_interval_days }}
+              {% if challenge_wizard_form.checkpoint_interval_days.errors %}<p class="mt-1 text-xs text-rose-200">{{ challenge_wizard_form.checkpoint_interval_days.errors|join:', ' }}</p>{% endif %}
+            </div>
+          </div>
+          <div>
+            <label class="text-xs uppercase tracking-[0.2em] text-zinc-400" for="id_progression_style">Progression style</label>
+            {{ challenge_wizard_form.progression_style }}
+            {% if challenge_wizard_form.progression_style.errors %}<p class="mt-1 text-xs text-rose-200">{{ challenge_wizard_form.progression_style.errors|join:', ' }}</p>{% endif %}
+          </div>
+          <button class="inline-flex rounded-full border border-brand-neon/50 bg-brand-neon/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand-neon" type="submit">Create challenge plan</button>
+        </form>
+      </section>
     </aside>
   </section>
 {% endblock %}

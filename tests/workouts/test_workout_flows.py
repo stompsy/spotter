@@ -132,6 +132,85 @@ def test_workout_plan_list_displays_challenge_preset_controls(client):
 
 
 @pytest.mark.django_db
+def test_workout_plan_list_displays_challenge_wizard_controls(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="wizard_view_user",
+        email="wizard_view_user@example.com",
+        password="pw",
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("workouts:list"))
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Challenge wizard" in content
+    assert "Build a custom challenge" in content
+    assert "Progression style" in content
+
+
+@pytest.mark.django_db
+def test_user_can_create_challenge_plan_from_wizard(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="wizard_creator",
+        email="wizard_creator@example.com",
+        password="pw",
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:list"),
+        {
+            "action": "challenge_wizard",
+            "focus_area": "Shoulders",
+            "duration_days": "14",
+            "progression_style": "step",
+            "checkpoint_interval_days": "7",
+        },
+    )
+
+    assert response.status_code == 302
+    plan = WorkoutPlan.objects.get(name="14-Day Shoulders Challenge")
+    assert plan.plan_type == "challenge"
+    assert plan.duration_band == "short"
+    assert plan.challenge_duration_days == 14
+    assert plan.challenge_focus_area == "Shoulders"
+    assert plan.challenge_days.count() == 14
+    checkpoint_days = plan.challenge_days.filter(notes__icontains="Checkpoint").order_by(
+        "day_number"
+    )
+    assert list(checkpoint_days.values_list("day_number", flat=True)) == [7, 14]
+
+
+@pytest.mark.django_db
+def test_challenge_wizard_rejects_invalid_duration_days(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="wizard_invalid_duration",
+        email="wizard_invalid_duration@example.com",
+        password="pw",
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:list"),
+        {
+            "action": "challenge_wizard",
+            "focus_area": "Core",
+            "duration_days": "4",
+            "progression_style": "linear",
+            "checkpoint_interval_days": "7",
+        },
+    )
+
+    assert response.status_code == 400
+    content = response.content.decode("utf-8")
+    assert "Ensure this value is greater than or equal to 7." in content
+
+
+@pytest.mark.django_db
 def test_user_can_create_core_challenge_preset_from_plan_list(client):
     user_model = get_user_model()
     user = user_model.objects.create_user(
