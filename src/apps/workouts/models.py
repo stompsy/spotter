@@ -139,6 +139,37 @@ class ExerciseCandidate(models.Model):
         }
         return new_status in allowed_transitions.get(self.status, set())
 
+    def validate_publish_metadata(self) -> None:
+        metadata = self.metadata if isinstance(self.metadata, dict) else {}
+        required_text_fields = [
+            "source_name",
+            "source_url",
+            "attribution_text",
+        ]
+        required_true_flags = [
+            "media_rights_confirmed",
+            "content_rewritten",
+            "safety_reviewed",
+        ]
+
+        missing_text_fields = [
+            key
+            for key in required_text_fields
+            if not str(metadata.get(key, "")).strip()
+        ]
+        missing_true_flags = [
+            key
+            for key in required_true_flags
+            if metadata.get(key) is not True
+        ]
+
+        if missing_text_fields or missing_true_flags:
+            missing_items = ", ".join(missing_text_fields + missing_true_flags)
+            raise ValidationError(
+                "Cannot publish candidate without required attribution and safety metadata: "
+                f"{missing_items}"
+            )
+
     def transition_to(self, new_status: str) -> None:
         valid_statuses = {choice[0] for choice in CurationStatus.choices}
         if new_status not in valid_statuses:
@@ -152,6 +183,7 @@ class ExerciseCandidate(models.Model):
                 raise ValidationError(
                     "Cannot publish candidate without an approved source and license metadata"
                 )
+            self.validate_publish_metadata()
         self.status = new_status
 
 

@@ -337,6 +337,14 @@ def test_review_action_redirects_back_to_filtered_queue(client):
         normalized_name="publish me",
         status=CurationStatus.APPROVED,
         confidence=0.930,
+        metadata={
+            "source_name": "Queue redirect source",
+            "source_url": "https://example.com/queue-redirect-source",
+            "attribution_text": "Source: Queue redirect source",
+            "media_rights_confirmed": True,
+            "content_rewritten": True,
+            "safety_reviewed": True,
+        },
     )
 
     client.force_login(user)
