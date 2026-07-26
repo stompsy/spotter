@@ -1,4 +1,5 @@
 import csv
+from collections import Counter, defaultdict
 from datetime import timedelta
 
 from django.contrib import messages
@@ -13,9 +14,12 @@ from django.views.generic import ListView
 
 from apps.communities.models import Community, CommunityMembership, MembershipStatus
 from apps.workouts.models import (
+    ExerciseBodyArea,
+    ExerciseMovementType,
     WorkoutChallengeDayCompletion,
     WorkoutPlan,
     WorkoutPlanAssignment,
+    WorkoutPlanItem,
     WorkoutPlanType,
 )
 
@@ -153,6 +157,7 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ProgressFiltersMixin, ListVie
         logs_queryset = context["logs"]
         context["insights"] = self._build_insights(logs_queryset)
         context["challenge_kpis"] = self._build_challenge_kpis()
+        context["volume_summaries"] = self._build_volume_summaries(logs_queryset)
         context["rpe_trend"] = self._build_rpe_trend(logs_queryset)
         context["filter_options"] = self._filter_options()
         context["selected_filters"] = {
@@ -199,6 +204,72 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ProgressFiltersMixin, ListVie
             "active_communities_30d": recent_30d_communities.values(
                 "community_id"
             ).distinct().count(),
+        }
+
+    def _build_volume_summaries(self, logs):
+        plan_ids = [
+            plan_id
+            for plan_id in logs.values_list("plan_id", flat=True)
+            if plan_id is not None
+        ]
+        if not plan_ids:
+            return {
+                "has_data": False,
+                "movement_type_rows": [],
+                "body_area_rows": [],
+            }
+
+        plan_log_counts = Counter(plan_ids)
+        items = WorkoutPlanItem.objects.filter(
+            plan_id__in=plan_log_counts.keys()
+        ).select_related("exercise")
+
+        movement_points: dict[str, int] = defaultdict(int)
+        body_area_points: dict[str, int] = defaultdict(int)
+        for item in items:
+            session_count = plan_log_counts.get(item.plan_id, 0)
+            if session_count <= 0:
+                continue
+
+            points_per_session = int(item.duration_minutes or 1)
+            total_points = points_per_session * session_count
+
+            movement_type = item.exercise.movement_type
+            if movement_type != ExerciseMovementType.UNSPECIFIED:
+                movement_points[movement_type] += total_points
+
+            body_area = item.exercise.primary_body_area
+            if body_area != ExerciseBodyArea.UNSPECIFIED:
+                body_area_points[body_area] += total_points
+
+        movement_labels = dict(ExerciseMovementType.choices)
+        body_area_labels = dict(ExerciseBodyArea.choices)
+
+        def build_rows(points_by_key: dict[str, int], labels: dict[str, str]):
+            total_points = sum(points_by_key.values())
+            rows = []
+            for key, points in sorted(
+                points_by_key.items(),
+                key=lambda pair: (-pair[1], pair[0]),
+            ):
+                pct = (points / total_points) * 100.0 if total_points > 0 else 0.0
+                rows.append(
+                    {
+                        "key": key,
+                        "label": labels.get(key, key),
+                        "points": points,
+                        "pct": pct,
+                    }
+                )
+            return rows
+
+        movement_rows = build_rows(movement_points, movement_labels)
+        body_area_rows = build_rows(body_area_points, body_area_labels)
+        has_data = bool(movement_rows or body_area_rows)
+        return {
+            "has_data": has_data,
+            "movement_type_rows": movement_rows,
+            "body_area_rows": body_area_rows,
         }
 
     def _build_challenge_kpis(self):

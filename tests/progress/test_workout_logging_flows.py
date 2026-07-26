@@ -10,10 +10,15 @@ from django.utils import timezone
 from apps.communities.models import Community
 from apps.progress.models import WorkoutLog
 from apps.workouts.models import (
+    Exercise,
+    ExerciseBodyArea,
+    ExerciseCategory,
+    ExerciseMovementType,
     WorkoutChallengeDay,
     WorkoutChallengeDayCompletion,
     WorkoutPlan,
     WorkoutPlanAssignment,
+    WorkoutPlanItem,
 )
 
 
@@ -680,3 +685,93 @@ def test_progress_logs_show_empty_challenge_kpi_state_without_assignments(client
     content = response.content.decode()
     assert "Challenge KPIs" in content
     assert "No active challenge assignments yet for KPI tracking." in content
+
+
+@pytest.mark.django_db
+def test_progress_logs_show_body_area_and_movement_type_volume_summaries(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="volume_summary_user",
+        email="volume_summary_user@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Volume Summary Plan",
+        slug="volume-summary-plan",
+        created_by=user,
+        is_published=True,
+    )
+    push = Exercise.objects.create(
+        name="Push Move",
+        slug="push-move",
+        category=ExerciseCategory.STRENGTH,
+        movement_type=ExerciseMovementType.PUSH,
+        primary_body_area=ExerciseBodyArea.UPPER_BODY,
+        is_active=True,
+    )
+    pull = Exercise.objects.create(
+        name="Pull Move",
+        slug="pull-move",
+        category=ExerciseCategory.STRENGTH,
+        movement_type=ExerciseMovementType.PULL,
+        primary_body_area=ExerciseBodyArea.BACK,
+        is_active=True,
+    )
+    WorkoutPlanItem.objects.create(
+        plan=plan,
+        exercise=push,
+        order=1,
+        duration_minutes=5,
+    )
+    WorkoutPlanItem.objects.create(
+        plan=plan,
+        exercise=pull,
+        order=2,
+        duration_minutes=2,
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        completed_at=timezone.now() - timedelta(days=1),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        completed_at=timezone.now() - timedelta(days=2),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Volume Summaries" in content
+    assert "Movement Type Volume" in content
+    assert "Body Area Volume" in content
+    assert "Push • 10 pts" in content
+    assert "Pull • 4 pts" in content
+    assert "Upper body • 10 pts" in content
+    assert "Back • 4 pts" in content
+
+
+@pytest.mark.django_db
+def test_progress_logs_show_empty_volume_summary_state_for_unplanned_logs(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="volume_summary_empty_user",
+        email="volume_summary_empty_user@example.com",
+        password="pw",
+    )
+    WorkoutLog.objects.create(
+        performed_by=user,
+        notes="Unplanned session",
+        completed_at=timezone.now() - timedelta(days=1),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Volume Summaries" in content
+    assert "No logged plan volume yet for movement-type or body-area summaries." in content
