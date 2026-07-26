@@ -40,17 +40,17 @@
                 <section class="rounded-xl border border-white/10 bg-black/20 p-4">
                   <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500">Movement profile</p>
                   <div class="mt-3 flex flex-wrap gap-2 text-xs">
-                    <span class="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-zinc-200">{{ exercise.get_movement_type_display }}</span>
-                    <span class="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-zinc-200">{{ exercise.get_primary_body_area_display }}</span>
-                    <span class="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-zinc-200">{{ exercise.get_difficulty_level_display }}</span>
-                    <span class="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-zinc-200">{{ exercise.get_equipment_requirement_display }}</span>
+                    <span class="rounded-full border border-brand-neon/40 bg-brand-neon/10 px-2 py-1 text-zinc-100">{{ exercise.get_movement_type_display }}</span>
+                    <span class="rounded-full border border-sky-300/40 bg-sky-300/10 px-2 py-1 text-sky-100">Primary area: {{ exercise.get_primary_body_area_display }}</span>
+                    <span class="rounded-full border border-fuchsia-300/30 bg-fuchsia-300/10 px-2 py-1 text-fuchsia-100">Level: {{ exercise.get_difficulty_level_display }}</span>
+                    <span class="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-zinc-200">Equipment: {{ exercise.get_equipment_requirement_display }}</span>
                   </div>
 
                   <p class="mt-4 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500">Authoring notes</p>
                   <p class="mt-2 text-sm text-zinc-300">{{ exercise.description|default:"No description." }}</p>
                   <dl class="mt-3 space-y-2 text-xs text-zinc-300">
                     <div>
-                      <dt class="font-semibold uppercase tracking-wide text-zinc-400">Instructions</dt>
+                      <dt class="font-semibold uppercase tracking-wide text-zinc-400">Safe-form instructions</dt>
                       <dd>{{ exercise.instructions|default:"Not documented yet." }}</dd>
                     </div>
                     <div>
@@ -65,11 +65,11 @@
                 </section>
 
                 <section class="space-y-4">
-                  <div class="rounded-xl border border-amber-300/20 bg-amber-300/5 p-4">
-                    <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-200">Safety and coaching</p>
+                  <div class="rounded-xl border border-amber-300/30 bg-gradient-to-br from-amber-300/10 to-rose-300/5 p-4">
+                    <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-200">Caution and coaching</p>
                     <dl class="mt-3 space-y-2 text-xs text-zinc-200">
                       <div>
-                        <dt class="font-semibold uppercase tracking-wide text-amber-100">Safety notes</dt>
+                        <dt class="font-semibold uppercase tracking-wide text-amber-100">Caution notes</dt>
                         <dd>{{ exercise.safety_notes|default:"No safety notes yet." }}</dd>
                       </div>
                       <div>
@@ -110,16 +110,19 @@
               {% if exercise.media_items.all %}
                 <div class="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
                   <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500">Media</p>
-                  <ul class="mt-3 space-y-1">
+                  <ul class="mt-3 grid gap-2 sm:grid-cols-2">
                   {% for media_item in exercise.media_items.all %}
-                    <li class="text-xs text-zinc-300">
-                      {{ media_item.get_media_type_display }} |
-                      {% if media_item.external_url %}
-                        <a class="text-brand-neon underline" href="{{ media_item.external_url }}" target="_blank" rel="noreferrer">External media</a>
-                      {% else %}
-                        Uploaded file
-                      {% endif %}
-                      | License: {{ media_item.license_name }}
+                    <li class="rounded-lg border border-white/10 bg-white/5 p-3 text-xs text-zinc-300">
+                      <p class="font-semibold uppercase tracking-wide text-zinc-100">{{ media_item.get_media_type_display }}</p>
+                      <p class="mt-1">
+                        {% if media_item.external_url %}
+                          <a class="text-brand-neon underline" href="{{ media_item.external_url }}" target="_blank" rel="noreferrer">Open external media</a>
+                        {% else %}
+                          Uploaded file
+                        {% endif %}
+                      </p>
+                      <p class="mt-1 text-zinc-400">License: {{ media_item.license_name }}</p>
+                      {% if media_item.attribution_text %}<p class="mt-1 text-zinc-500">{{ media_item.attribution_text }}</p>{% endif %}
                     </li>
                   {% endfor %}
                   </ul>
