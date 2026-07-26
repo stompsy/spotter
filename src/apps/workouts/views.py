@@ -136,6 +136,12 @@ class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
         reason = request.POST.get("reason", "").strip()
         next_url = request.POST.get("next", "").strip()
         previous_status = candidate.status
+        metadata_updates = _extract_candidate_metadata_updates(request)
+
+        if metadata_updates is not None:
+            metadata = candidate.metadata if isinstance(candidate.metadata, dict) else {}
+            metadata.update(metadata_updates)
+            candidate.metadata = metadata
 
         action_map = {
             "mark_review": CurationStatus.NEEDS_REVIEW,
@@ -171,6 +177,7 @@ class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
                 "reviewed_by",
                 "reviewed_at",
                 "decision_reason",
+                "metadata",
                 "updated_at",
             ]
         )
@@ -455,3 +462,24 @@ def _can_view_plan(user, plan: WorkoutPlan) -> bool:
 
 def _can_review_candidates(user) -> bool:
     return user.is_superuser or user.has_perm("workouts.review_exercisecandidate")
+
+
+def _extract_candidate_metadata_updates(request: HttpRequest) -> dict[str, object] | None:
+    helper_text_keys = ["source_name", "source_url", "attribution_text"]
+    helper_flag_keys = [
+        "media_rights_confirmed",
+        "content_rewritten",
+        "safety_reviewed",
+    ]
+
+    if not any(key in request.POST for key in helper_text_keys + helper_flag_keys):
+        return None
+
+    updates: dict[str, object] = {
+        "source_name": request.POST.get("source_name", "").strip(),
+        "source_url": request.POST.get("source_url", "").strip(),
+        "attribution_text": request.POST.get("attribution_text", "").strip(),
+    }
+    for key in helper_flag_keys:
+        updates[key] = key in request.POST
+    return updates
