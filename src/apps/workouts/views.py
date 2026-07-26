@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -13,7 +14,7 @@ from django.views.generic import DetailView, ListView
 from apps.communities.models import CommunityMembership, MembershipRole, MembershipStatus
 
 from .forms import ExerciseForm, WorkoutPlanAssignmentForm, WorkoutPlanForm, WorkoutPlanItemForm
-from .models import Exercise, WorkoutPlan, WorkoutPlanAssignment
+from .models import CurationStatus, Exercise, ExerciseCandidate, WorkoutPlan, WorkoutPlanAssignment
 
 
 class ExerciseListView(LoginRequiredMixin, ListView):
@@ -62,6 +63,33 @@ class ExerciseToggleActiveView(LoginRequiredMixin, View):
             request,
             "Exercise activated." if exercise.is_active else "Exercise archived.",
         )
+        return redirect("workouts:exercises")
+
+
+class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
+    def post(self, request: HttpRequest, candidate_id: int) -> HttpResponse:
+        candidate = get_object_or_404(ExerciseCandidate, id=candidate_id)
+        action = request.POST.get("action", "").strip().lower()
+
+        action_map = {
+            "mark_review": CurationStatus.NEEDS_REVIEW,
+            "send_back": CurationStatus.DRAFT,
+            "approve": CurationStatus.APPROVED,
+            "publish": CurationStatus.PUBLISHED,
+            "deprecate": CurationStatus.DEPRECATED,
+        }
+        new_status = action_map.get(action)
+        if new_status is None:
+            raise Http404("Candidate action not found")
+
+        try:
+            candidate.transition_to(new_status)
+        except ValidationError:
+            messages.error(request, "Candidate status transition is not allowed.")
+            return redirect("workouts:exercises")
+
+        candidate.save(update_fields=["status", "updated_at"])
+        messages.success(request, f"Candidate moved to {new_status}.")
         return redirect("workouts:exercises")
 
 

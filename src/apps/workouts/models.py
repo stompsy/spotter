@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -101,6 +102,40 @@ class ExerciseCandidate(models.Model):
 
     def __str__(self) -> str:
         return self.normalized_name
+
+    def can_transition_to(self, new_status: str) -> bool:
+        allowed_transitions = {
+            CurationStatus.DRAFT: {
+                CurationStatus.NEEDS_REVIEW,
+                CurationStatus.DEPRECATED,
+            },
+            CurationStatus.NEEDS_REVIEW: {
+                CurationStatus.DRAFT,
+                CurationStatus.APPROVED,
+                CurationStatus.DEPRECATED,
+            },
+            CurationStatus.APPROVED: {
+                CurationStatus.PUBLISHED,
+                CurationStatus.DEPRECATED,
+            },
+            CurationStatus.PUBLISHED: {
+                CurationStatus.DEPRECATED,
+            },
+            CurationStatus.DEPRECATED: {
+                CurationStatus.NEEDS_REVIEW,
+            },
+        }
+        return new_status in allowed_transitions.get(self.status, set())
+
+    def transition_to(self, new_status: str) -> None:
+        valid_statuses = {choice[0] for choice in CurationStatus.choices}
+        if new_status not in valid_statuses:
+            raise ValidationError(f"Unknown curation status: {new_status}")
+        if not self.can_transition_to(new_status):
+            raise ValidationError(
+                f"Invalid status transition from {self.status} to {new_status}"
+            )
+        self.status = new_status
 
 
 class ExerciseExtractionRun(models.Model):
