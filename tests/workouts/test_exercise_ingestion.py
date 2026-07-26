@@ -496,3 +496,104 @@ def test_exercise_candidate_review_action_requires_reviewer_permission(client):
     candidate.refresh_from_db()
     assert candidate.status == CurationStatus.DRAFT
     assert ExerciseCandidateDecision.objects.filter(candidate=candidate).count() == 0
+
+
+@pytest.mark.django_db
+def test_ingest_exercise_candidates_dataset_adapter_csv(tmp_path):
+    source_file = tmp_path / "bundle.csv"
+    source_file.write_text(
+        "name\nForward Lunges\nPlank\n",
+        encoding="utf-8",
+    )
+
+    call_command(
+        "ingest_exercise_candidates",
+        source_file=str(source_file),
+        adapter="dataset",
+    )
+
+    source = ExerciseSource.objects.get(location=str(source_file))
+    assert source.source_type == ExerciseSourceType.DATASET
+    normalized = set(
+        ExerciseCandidate.objects.filter(source=source).values_list(
+            "normalized_name",
+            flat=True,
+        )
+    )
+    assert "forward lunge" in normalized
+    assert "plank" in normalized
+
+
+@pytest.mark.django_db
+def test_ingest_exercise_candidates_manual_adapter_without_source_file():
+    call_command(
+        "ingest_exercise_candidates",
+        adapter="manual",
+        candidate_name=["Reverse Lunges", "Plank"],
+    )
+
+    source = ExerciseSource.objects.get(location="manual://cli")
+    assert source.source_type == ExerciseSourceType.DOCUMENT
+    normalized = set(
+        ExerciseCandidate.objects.filter(source=source).values_list(
+            "normalized_name",
+            flat=True,
+        )
+    )
+    assert normalized == {"reverse lunge", "plank"}
+
+
+@pytest.mark.django_db
+def test_ingest_exercise_candidates_media_adapter_uses_filename_candidate(tmp_path):
+    source_file = tmp_path / "lateral_lunge_demo.mp4"
+    source_file.write_bytes(b"fake-media")
+
+    call_command(
+        "ingest_exercise_candidates",
+        source_file=str(source_file),
+        adapter="media",
+    )
+
+    source = ExerciseSource.objects.get(location=str(source_file))
+    assert source.source_type == ExerciseSourceType.WEB
+    candidates = list(
+        ExerciseCandidate.objects.filter(source=source).values_list(
+            "normalized_name",
+            flat=True,
+        )
+    )
+    assert "lateral lunge demo" in candidates
+
+
+@pytest.mark.django_db
+def test_ingest_exercise_candidates_sets_quality_checks_and_duplicate_metadata(tmp_path):
+    existing_source = ExerciseSource.objects.create(
+        name="existing",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/existing.txt",
+    )
+    ExerciseCandidate.objects.create(
+        source=existing_source,
+        raw_name="Forward Lunges",
+        normalized_name="forward lunge",
+        status=CurationStatus.DRAFT,
+    )
+
+    source_file = tmp_path / "quality.txt"
+    source_file.write_text(
+        "Forward Lunges\n3 sets of 10 reps\nWarm up first and stop if pain appears.",
+        encoding="utf-8",
+    )
+
+    call_command("ingest_exercise_candidates", source_file=str(source_file))
+
+    source = ExerciseSource.objects.get(location=str(source_file))
+    candidate = ExerciseCandidate.objects.get(
+        source=source,
+        normalized_name="forward lunge",
+    )
+    quality_checks = candidate.metadata.get("quality_checks", {})
+    assert quality_checks.get("duplicate_candidates") is True
+    assert quality_checks.get("duplicate_count") == 2
+    assert quality_checks.get("instruction_completeness_score", 0.0) > 0.0
+    assert quality_checks.get("safety_completeness_score", 0.0) > 0.0

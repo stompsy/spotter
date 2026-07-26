@@ -145,7 +145,7 @@ Progress notation used below:
 - Tier A structured exercise datasets
 - Tier B media sources with asset-level licensing
 - Tier C safety overlays
-3. [IN PROGRESS] Add ingestion adapters:
+3. [PENDING] Add ingestion adapters:
 - dataset adapter
 - media adapter
 - manual editor adapter
@@ -155,7 +155,7 @@ Progress notation used below:
 - approved
 - published
 - deprecated
-5. [IN PROGRESS] Add content quality checks:
+5. [PENDING] Add content quality checks:
 - duplicate detection
 - instruction completeness score
 - safety completeness score
