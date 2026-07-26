@@ -22,6 +22,7 @@ from apps.workouts.models import (
     WorkoutPlan,
     WorkoutPlanAssignment,
     WorkoutPlanItem,
+    WorkoutPlanPhase,
 )
 
 
@@ -222,6 +223,118 @@ def test_detail_view_shows_challenge_days_section(client):
     content = response.content.decode("utf-8")
     assert "Challenge days" in content
     assert "Day 1: Start Strong" in content
+
+
+@pytest.mark.django_db
+def test_program_phase_can_be_created_for_program_plan():
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="program_phase_owner",
+        email="program_phase_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Tri Phase Plan",
+        slug="tri-phase-plan",
+        created_by=user,
+        plan_type="program",
+        duration_band="long",
+    )
+
+    phase = WorkoutPlanPhase.objects.create(
+        plan=plan,
+        phase_number=1,
+        name="Base Build",
+        focus_area="Capacity",
+        week_start=1,
+        week_end=4,
+    )
+
+    assert phase.plan_id == plan.id
+    assert phase.phase_number == 1
+
+
+@pytest.mark.django_db
+def test_program_phase_rejects_non_program_plan():
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="non_program_phase_owner",
+        email="non_program_phase_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Single Session Builder",
+        slug="single-session-builder",
+        created_by=user,
+        plan_type="single_session",
+        duration_band="medium",
+    )
+
+    with pytest.raises(ValidationError, match="Phases can only be added to program plans"):
+        WorkoutPlanPhase.objects.create(
+            plan=plan,
+            phase_number=1,
+            name="Invalid Phase",
+        )
+
+
+@pytest.mark.django_db
+def test_program_phase_rejects_invalid_week_range():
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="phase_range_owner",
+        email="phase_range_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Periodized Builder",
+        slug="periodized-builder",
+        created_by=user,
+        plan_type="program",
+        duration_band="long",
+    )
+
+    with pytest.raises(ValidationError, match="week end must be greater than or equal"):
+        WorkoutPlanPhase.objects.create(
+            plan=plan,
+            phase_number=1,
+            name="Backwards Phase",
+            week_start=5,
+            week_end=3,
+        )
+
+
+@pytest.mark.django_db
+def test_detail_view_shows_program_phases_section(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="program_phase_view_owner",
+        email="program_phase_view_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Program Visibility",
+        slug="program-visibility",
+        created_by=user,
+        plan_type="program",
+        duration_band="long",
+    )
+    WorkoutPlanPhase.objects.create(
+        plan=plan,
+        phase_number=1,
+        name="Base Build",
+        focus_area="Strength",
+        week_start=1,
+        week_end=4,
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("workouts:detail", kwargs={"slug": plan.slug}))
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Program phases" in content
+    assert "Phase 1: Base Build" in content
 
 
 @pytest.mark.django_db
