@@ -45,6 +45,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 15 merged: in-app candidate review metadata helper parity with structured field persistence and coverage tests.
 - Slice 16 merged: reviewer guardrail feedback with inline publish requirement gaps and specific publish error messaging.
 - Slice 17 merged: publish-readiness queue filtering, per-requirement reviewer confirmation audit metadata, and in-form policy help panel.
+- Slice 18 merged: Phase 1 taxonomy expansion with movement type, body area, difficulty, and equipment requirement fields plus migration/UI/test coverage.
 
 ## Phased roadmap
 
@@ -63,12 +64,12 @@ Progress notation used below:
 3. [DONE] ~~Add exercise guidance disclaimer pattern (informational, not medical advice).~~
 
 ### Phase 1 - Domain Model Expansion (Foundational)
-1. [PENDING] Extend exercise taxonomy beyond current category enum.
-2. [PENDING] Add normalized exercise metadata fields:
-- movement type
-- body areas
-- difficulty level
-- equipment requirements
+1. [IN PROGRESS] Extend exercise taxonomy beyond current category enum.
+2. [IN PROGRESS] Add normalized exercise metadata fields:
+- [DONE] movement type
+- [DONE] body areas
+- [DONE] difficulty level
+- [DONE] equipment requirements
 - contraindications and safety notes
 - setup, execution steps, common mistakes, coaching cues
 - default prescription ranges by goal
