@@ -61,6 +61,31 @@ CHALLENGE_PRESET_OPTIONS = [
 ]
 
 
+GUIDED_PLAN_COMPOSER_TEMPLATES = [
+    {
+        "key": "starter_short",
+        "label": "Short Session Starter",
+        "description": "Add 3 reusable exercise cards tuned for short sessions.",
+    },
+    {
+        "key": "starter_medium",
+        "label": "Medium Session Starter",
+        "description": "Add 5 reusable exercise cards for balanced medium sessions.",
+    },
+    {
+        "key": "starter_long",
+        "label": "Long Session Starter",
+        "description": "Add 7 reusable exercise cards for longer training blocks.",
+    },
+    {
+        "key": "challenge_day_starter",
+        "label": "Challenge Day Starter",
+        "description": "Attach a starter card set to the next available challenge day.",
+        "challenge_only": True,
+    },
+]
+
+
 class ExerciseListView(LoginRequiredMixin, ListView):
     model = Exercise
     template_name = "workouts/exercises.html"
@@ -464,6 +489,7 @@ class WorkoutPlanDetailView(LoginRequiredMixin, DetailView):
             user=self.request.user,
         )
         context["can_manage"] = _can_manage_plan(self.request.user, self.object)
+        context["composer_template_options"] = _get_composer_template_options(self.object)
         context["phases"] = self.object.phases.all()
         context["items"] = self.object.items.select_related("exercise").all()
         context["challenge_days"] = self.object.challenge_days.all()
@@ -571,6 +597,23 @@ class WorkoutPlanItemCreateView(LoginRequiredMixin, View):
         return response
 
 
+class WorkoutPlanComposeTemplateView(LoginRequiredMixin, View):
+    def post(self, request: HttpRequest, slug: str) -> HttpResponse:
+        plan = get_object_or_404(WorkoutPlan, slug=slug)
+        if not _can_manage_plan(request.user, plan):
+            raise Http404("Workout plan not found")
+
+        template_key = request.POST.get("template_key", "").strip().lower()
+        try:
+            created_count = _apply_plan_composer_template(plan, template_key)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("workouts:detail", slug=plan.slug)
+
+        messages.success(request, f"Guided template added {created_count} item(s).")
+        return redirect("workouts:detail", slug=plan.slug)
+
+
 class WorkoutPlanAssignView(LoginRequiredMixin, View):
     def post(self, request: HttpRequest, slug: str) -> HttpResponse:
         plan = get_object_or_404(WorkoutPlan, slug=slug)
@@ -641,6 +684,109 @@ def _build_unique_plan_slug(name: str) -> str:
         suffix += 1
         slug = f"{base_slug}-{suffix}"
     return slug
+
+
+def _get_composer_template_options(plan: WorkoutPlan) -> list[dict[str, str]]:
+    options: list[dict[str, str]] = []
+    for template in GUIDED_PLAN_COMPOSER_TEMPLATES:
+        if template.get("challenge_only") and plan.plan_type != WorkoutPlanType.CHALLENGE:
+            continue
+        options.append(template)
+    return options
+
+
+def _apply_plan_composer_template(plan: WorkoutPlan, template_key: str) -> int:
+    template_map = {
+        "starter_short": (ExerciseDurationFit.SHORT, 3, "3 x 8"),
+        "starter_medium": (ExerciseDurationFit.MEDIUM, 5, "3 x 10"),
+        "starter_long": (ExerciseDurationFit.LONG, 7, "4 x 12"),
+    }
+
+    if template_key in template_map:
+        duration_fit, target_count, repetitions = template_map[template_key]
+        exercises = _select_composer_exercises(plan, duration_fit, target_count)
+        if not exercises:
+            raise ValueError("No active exercises available for that guided template.")
+
+        next_order = _next_plan_order(plan)
+        for index, exercise in enumerate(exercises):
+            WorkoutPlanItem.objects.create(
+                plan=plan,
+                exercise=exercise,
+                order=next_order + index,
+                repetitions=repetitions,
+                notes="Guided composer template item.",
+            )
+        return len(exercises)
+
+    if template_key == "challenge_day_starter":
+        if plan.plan_type != WorkoutPlanType.CHALLENGE:
+            raise ValueError("Challenge day templates are only available for challenge plans.")
+        day = _next_available_challenge_day(plan)
+        if day is None:
+            raise ValueError("No challenge days are configured for this plan.")
+
+        exercises = _select_composer_exercises(plan, ExerciseDurationFit.SHORT, 2)
+        if not exercises:
+            raise ValueError("No active exercises available for that guided template.")
+
+        next_order = _next_plan_order(plan)
+        for index, exercise in enumerate(exercises):
+            WorkoutPlanItem.objects.create(
+                plan=plan,
+                challenge_day=day,
+                exercise=exercise,
+                order=next_order + index,
+                repetitions="3 x 8 each side",
+                notes=f"Guided challenge day template for day {day.day_number}.",
+            )
+        return len(exercises)
+
+    raise ValueError("Unknown guided template.")
+
+
+def _next_plan_order(plan: WorkoutPlan) -> int:
+    current_max = plan.items.order_by("-order").values_list("order", flat=True).first()
+    return (current_max or 0) + 1
+
+
+def _select_composer_exercises(
+    plan: WorkoutPlan,
+    duration_fit: str,
+    target_count: int,
+) -> list[Exercise]:
+    existing_ids = set(plan.items.values_list("exercise_id", flat=True))
+    querysets = [
+        Exercise.objects.filter(
+            is_active=True,
+            duration_fit=duration_fit,
+        ).exclude(id__in=existing_ids),
+        Exercise.objects.filter(
+            is_active=True,
+            duration_fit=ExerciseDurationFit.UNSPECIFIED,
+        ).exclude(id__in=existing_ids),
+        Exercise.objects.filter(is_active=True).exclude(id__in=existing_ids),
+    ]
+
+    selected: list[Exercise] = []
+    seen_ids: set[int] = set()
+    for queryset in querysets:
+        for exercise in queryset.order_by("name"):
+            if exercise.id in seen_ids:
+                continue
+            selected.append(exercise)
+            seen_ids.add(exercise.id)
+            if len(selected) >= target_count:
+                return selected
+    return selected
+
+
+def _next_available_challenge_day(plan: WorkoutPlan) -> WorkoutChallengeDay | None:
+    challenge_days = plan.challenge_days.order_by("day_number", "id")
+    for day in challenge_days:
+        if not day.items.exists():
+            return day
+    return challenge_days.first()
 
 
 def _create_challenge_preset_plan(user, preset_key: str) -> WorkoutPlan:
