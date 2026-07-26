@@ -168,3 +168,12 @@ Notes:
 
 - The command is idempotent and safe to rerun.
 - If any provided username does not exist, the command exits with an error.
+
+## Exercise Content Governance
+
+Phase 0 content and licensing governance policy is documented in:
+
+- `docs/content-policy.md`
+
+Use this policy for source approval, attribution checks, media rights review,
+and publication safety guardrails.
