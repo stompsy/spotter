@@ -480,6 +480,43 @@ class WorkoutChallengeDay(models.Model):
         return super().save(*args, **kwargs)
 
 
+class WorkoutPlanPhase(models.Model):
+    plan = models.ForeignKey(
+        WorkoutPlan,
+        on_delete=models.CASCADE,
+        related_name="phases",
+    )
+    phase_number = models.PositiveSmallIntegerField()
+    name = models.CharField(max_length=120)
+    focus_area = models.CharField(max_length=120, blank=True)
+    week_start = models.PositiveSmallIntegerField(null=True, blank=True)
+    week_end = models.PositiveSmallIntegerField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["phase_number", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["plan", "phase_number"],
+                name="unique_phase_number_per_plan",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.plan.name} phase {self.phase_number}"
+
+    def clean(self):
+        if self.plan.plan_type != WorkoutPlanType.PROGRAM:
+            raise ValidationError("Phases can only be added to program plans.")
+
+        if self.week_start and self.week_end and self.week_end < self.week_start:
+            raise ValidationError("Phase week end must be greater than or equal to week start.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
 class WorkoutPlanItem(models.Model):
     plan = models.ForeignKey(WorkoutPlan, on_delete=models.CASCADE, related_name="items")
     challenge_day = models.ForeignKey(

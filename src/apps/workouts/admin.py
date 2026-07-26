@@ -14,6 +14,7 @@ from .models import (
     WorkoutPlan,
     WorkoutPlanAssignment,
     WorkoutPlanItem,
+    WorkoutPlanPhase,
 )
 
 
@@ -126,6 +127,11 @@ class WorkoutChallengeDayInline(admin.TabularInline):
     extra = 0
 
 
+class WorkoutPlanPhaseInline(admin.TabularInline):
+    model = WorkoutPlanPhase
+    extra = 0
+
+
 @admin.register(WorkoutPlan)
 class WorkoutPlanAdmin(admin.ModelAdmin):
     list_display = (
@@ -141,7 +147,7 @@ class WorkoutPlanAdmin(admin.ModelAdmin):
     )
     list_filter = ("plan_type", "duration_band", "is_template", "is_published")
     search_fields = ("name", "slug", "community__name", "created_by__username")
-    inlines = [WorkoutChallengeDayInline, WorkoutPlanItemInline]
+    inlines = [WorkoutPlanPhaseInline, WorkoutChallengeDayInline, WorkoutPlanItemInline]
 
 
 @admin.register(WorkoutChallengeDay)
@@ -155,6 +161,20 @@ class WorkoutChallengeDayAdmin(admin.ModelAdmin):
     )
     list_filter = ("plan__plan_type",)
     search_fields = ("plan__name", "title", "focus_area", "notes")
+
+
+@admin.register(WorkoutPlanPhase)
+class WorkoutPlanPhaseAdmin(admin.ModelAdmin):
+    list_display = (
+        "plan",
+        "phase_number",
+        "name",
+        "focus_area",
+        "week_start",
+        "week_end",
+    )
+    list_filter = ("plan__plan_type",)
+    search_fields = ("plan__name", "name", "focus_area", "notes")
 
 
 @admin.register(WorkoutPlanAssignment)
