@@ -334,6 +334,7 @@ class WorkoutPlanDetailView(LoginRequiredMixin, DetailView):
         )
         context["can_manage"] = _can_manage_plan(self.request.user, self.object)
         context["items"] = self.object.items.select_related("exercise").all()
+        context["challenge_days"] = self.object.challenge_days.all()
         context["assignments"] = self.object.assignments.select_related(
             "assigned_to", "assigned_community"
         ).order_by("-created_at")
