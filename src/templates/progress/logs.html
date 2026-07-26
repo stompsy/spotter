@@ -85,6 +85,7 @@
 
       <section class="mt-5 rounded-xl border border-white/10 bg-black/20 p-4">
         <h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-neon">Challenge KPIs</h3>
+        <p class="mt-1 text-xs text-zinc-400">Educational only and non-diagnostic. Use this panel for training reflection, not clinical decisions.</p>
         {% if challenge_kpis.has_data %}
           <div class="mt-3 grid gap-3 sm:grid-cols-2">
             <article class="rounded-lg border border-white/10 bg-black/30 p-3">
@@ -138,6 +139,23 @@
       </section>
 
       <section class="mt-5 rounded-xl border border-white/10 bg-black/20 p-4">
+        <h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-neon">Load-Safety Alerts</h3>
+        {% if load_safety_alerts.has_alerts %}
+          <ul class="mt-3 space-y-2">
+            {% for alert in load_safety_alerts.alerts %}
+              <li class="rounded-lg border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                <p class="font-semibold uppercase tracking-wide">{{ alert.title }}</p>
+                <p class="mt-1 text-xs text-amber-100/90">{{ alert.message }}</p>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="mt-2 text-sm text-zinc-300">No load-safety alerts in the selected window.</p>
+        {% endif %}
+        <p class="mt-3 text-xs text-zinc-400">{{ load_safety_alerts.education_note }}</p>
+      </section>
+
+      <section class="mt-5 rounded-xl border border-white/10 bg-black/20 p-4">
         <h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-neon">Volume Summaries</h3>
         {% if volume_summaries.has_data %}
           <div class="mt-3 grid gap-3 sm:grid-cols-2">
@@ -178,6 +196,7 @@
 
       <section class="mt-5 rounded-xl border border-white/10 bg-black/20 p-4">
         <h3 class="font-display text-xl font-bold uppercase tracking-wide text-brand-neon">RPE Trend ({{ rpe_trend.window_days }}d)</h3>
+        <p class="mt-1 text-xs text-zinc-400">Trend patterns are educational signals and not a diagnosis.</p>
         <p class="mt-1 text-xs uppercase tracking-wide text-zinc-400">
           {% if rpe_trend.compare.current_avg is not None and rpe_trend.compare.previous_avg is not None %}
             {% if rpe_trend.compare.direction == 'up' %}
