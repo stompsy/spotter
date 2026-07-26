@@ -1193,6 +1193,7 @@ def test_exercise_library_displays_rich_card_sections_and_authoring_form(client)
         media_type="image",
         external_url="https://example.com/tempo-squat.jpg",
         license_name="CC BY 4.0",
+        attribution_text="Photo by Example Coach",
     )
 
     client.force_login(user)
@@ -1202,9 +1203,14 @@ def test_exercise_library_displays_rich_card_sections_and_authoring_form(client)
     content = response.content.decode("utf-8")
     assert "Movement profile" in content
     assert "Authoring notes" in content
-    assert "Safety and coaching" in content
+    assert "Caution and coaching" in content
     assert "Default prescriptions" in content
     assert "Active library item" in content
     assert "1 media" in content
     assert "Classification" in content
     assert "Authoring" in content
+    assert "Primary area: Lower body" in content
+    assert "Level: Intermediate" in content
+    assert "Safe-form instructions" in content
+    assert "Open external media" in content
+    assert "Photo by Example Coach" in content
