@@ -131,7 +131,9 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Created {created_count} reminder notification(s), sent {sent_count}, failed {failed_count}."
+                "Created "
+                f"{created_count} reminder notification(s), "
+                f"sent {sent_count}, failed {failed_count}."
             )
         )
 

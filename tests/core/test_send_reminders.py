@@ -4,8 +4,8 @@ from datetime import timedelta
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.core.management import call_command
 from django.core import mail
+from django.core.management import call_command
 from django.test import override_settings
 from django.utils import timezone
 
@@ -121,13 +121,28 @@ def test_send_reminders_honors_days_ahead_and_avoids_duplicates_same_day():
     )
 
     call_command("send_reminders", days_ahead=1)
-    assert NotificationEvent.objects.filter(notification_type=NotificationType.REMINDER).count() == 0
+    assert (
+        NotificationEvent.objects.filter(
+            notification_type=NotificationType.REMINDER
+        ).count()
+        == 0
+    )
 
     call_command("send_reminders", days_ahead=2)
-    assert NotificationEvent.objects.filter(notification_type=NotificationType.REMINDER).count() == 1
+    assert (
+        NotificationEvent.objects.filter(
+            notification_type=NotificationType.REMINDER
+        ).count()
+        == 1
+    )
 
     call_command("send_reminders", days_ahead=2)
-    assert NotificationEvent.objects.filter(notification_type=NotificationType.REMINDER).count() == 1
+    assert (
+        NotificationEvent.objects.filter(
+            notification_type=NotificationType.REMINDER
+        ).count()
+        == 1
+    )
 
     event = NotificationEvent.objects.get(notification_type=NotificationType.REMINDER)
     assert event.payload["assignment_id"] == assignment.id
@@ -160,7 +175,12 @@ def test_send_reminders_dry_run_creates_no_events():
 
     call_command("send_reminders", dry_run=True)
 
-    assert NotificationEvent.objects.filter(notification_type=NotificationType.REMINDER).count() == 0
+    assert (
+        NotificationEvent.objects.filter(
+            notification_type=NotificationType.REMINDER
+        ).count()
+        == 0
+    )
 
 
 @pytest.mark.django_db
