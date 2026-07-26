@@ -37,6 +37,7 @@ class ExerciseListView(LoginRequiredMixin, ListView):
     def _get_filtered_candidates(self):
         status = self.request.GET.get("candidate_status", "all").strip().lower()
         confidence_band = self.request.GET.get("confidence_band", "all").strip().lower()
+        publish_readiness = self.request.GET.get("publish_readiness", "all").strip().lower()
 
         queryset = ExerciseCandidate.objects.select_related("source", "reviewed_by")
 
@@ -55,20 +56,44 @@ class ExerciseListView(LoginRequiredMixin, ListView):
         else:
             confidence_band = "all"
 
+        if publish_readiness not in {"all", "ready", "missing"}:
+            publish_readiness = "all"
+
         return (
             queryset.order_by("status", "-confidence", "normalized_name", "id"),
             status,
             confidence_band,
+            publish_readiness,
         )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        candidates, selected_status, selected_confidence_band = self._get_filtered_candidates()
+        (
+            candidates,
+            selected_status,
+            selected_confidence_band,
+            selected_publish_readiness,
+        ) = self._get_filtered_candidates()
         candidates = list(candidates)
         for candidate in candidates:
             candidate.publish_requirements_missing = _get_publish_requirements_missing(
                 candidate
             )
+            candidate.publish_confirmation_audit = _get_publish_confirmation_audit(candidate)
+
+        if selected_publish_readiness == "ready":
+            candidates = [
+                candidate
+                for candidate in candidates
+                if not candidate.publish_requirements_missing
+            ]
+        elif selected_publish_readiness == "missing":
+            candidates = [
+                candidate
+                for candidate in candidates
+                if candidate.publish_requirements_missing
+            ]
+
         recent_decisions = ExerciseCandidateDecision.objects.select_related(
             "candidate",
             "decided_by",
@@ -80,6 +105,7 @@ class ExerciseListView(LoginRequiredMixin, ListView):
         context["recent_candidate_decisions"] = recent_decisions
         context["selected_candidate_status"] = selected_status
         context["selected_confidence_band"] = selected_confidence_band
+        context["selected_publish_readiness"] = selected_publish_readiness
         context["candidate_status_options"] = [
             {"value": "all", "label": "All statuses"},
             *[
@@ -92,6 +118,11 @@ class ExerciseListView(LoginRequiredMixin, ListView):
             {"value": "high", "label": "High (>= 0.85)"},
             {"value": "medium", "label": "Medium (0.60-0.84)"},
             {"value": "low", "label": "Low (< 0.60)"},
+        ]
+        context["publish_readiness_options"] = [
+            {"value": "all", "label": "All candidates"},
+            {"value": "ready", "label": "Publish ready"},
+            {"value": "missing", "label": "Missing requirements"},
         ]
         return context
 
@@ -145,8 +176,11 @@ class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
 
         if metadata_updates is not None:
             metadata = candidate.metadata if isinstance(candidate.metadata, dict) else {}
-            metadata.update(metadata_updates)
-            candidate.metadata = metadata
+            candidate.metadata = _merge_candidate_metadata_with_audit(
+                metadata,
+                metadata_updates,
+                request.user,
+            )
 
         action_map = {
             "mark_review": CurationStatus.NEEDS_REVIEW,
@@ -494,6 +528,46 @@ def _extract_candidate_metadata_updates(request: HttpRequest) -> dict[str, objec
     return updates
 
 
+def _merge_candidate_metadata_with_audit(
+    metadata: dict[str, object],
+    updates: dict[str, object],
+    user,
+) -> dict[str, object]:
+    merged = dict(metadata)
+    now = timezone.now().isoformat()
+    username = user.get_username() or str(user.pk)
+
+    auditable_keys = [
+        "source_name",
+        "source_url",
+        "attribution_text",
+        "media_rights_confirmed",
+        "content_rewritten",
+        "safety_reviewed",
+    ]
+
+    for key, value in updates.items():
+        merged[key] = value
+        if key not in auditable_keys:
+            continue
+
+        confirmed_at_key = f"{key}_confirmed_at"
+        confirmed_by_key = f"{key}_confirmed_by"
+
+        is_confirmed = bool(value)
+        if isinstance(value, str):
+            is_confirmed = bool(value.strip())
+
+        if is_confirmed:
+            merged[confirmed_at_key] = now
+            merged[confirmed_by_key] = username
+        else:
+            merged.pop(confirmed_at_key, None)
+            merged.pop(confirmed_by_key, None)
+
+    return merged
+
+
 def _missing_publish_metadata_fields(metadata: object) -> list[str]:
     metadata_dict = metadata if isinstance(metadata, dict) else {}
     required_text_fields = [
@@ -539,3 +613,25 @@ def _get_publish_requirements_missing(candidate: ExerciseCandidate) -> list[str]
         missing_items.append(metadata_labels[field_name])
 
     return missing_items
+
+
+def _get_publish_confirmation_audit(candidate: ExerciseCandidate) -> list[str]:
+    metadata = candidate.metadata if isinstance(candidate.metadata, dict) else {}
+    entries = []
+    field_labels = {
+        "source_name": "Source name",
+        "source_url": "Source URL",
+        "attribution_text": "Attribution text",
+        "media_rights_confirmed": "Media rights",
+        "content_rewritten": "Content rewritten",
+        "safety_reviewed": "Safety reviewed",
+    }
+
+    for key, label in field_labels.items():
+        confirmed_at = metadata.get(f"{key}_confirmed_at")
+        confirmed_by = metadata.get(f"{key}_confirmed_by")
+        if not confirmed_at or not confirmed_by:
+            continue
+        entries.append(f"{label}: {confirmed_by} at {confirmed_at}")
+
+    return entries
