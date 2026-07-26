@@ -66,6 +66,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 36 merged: Phase 4 day-state classification in calendar views (planned, partial, complete, missed, rest) with challenge completion-aware state logic and coverage tests.
 - Slice 37 merged: Phase 4 calendar-cell destination linking for workouts, logs, notes, and challenge-progress anchors with integration coverage tests.
 - Slice 38 merged: Phase 4 permission-aware coach/community overlays in calendar cells with role-sensitive visibility and coverage tests.
+- Slice 39 merged: Phase 5 challenge KPI panel for adherence, streaks, baseline-vs-current progress, and checkpoint deltas with progress-flow coverage tests.
 
 ## Phased roadmap
 
@@ -127,7 +128,7 @@ Progress notation used below:
 5. [DONE] ~~Add coach/community overlays where permissions allow.~~
 
 ### Phase 5 - Progress Analytics and Insight Safety
-1. [PENDING] Add challenge KPIs:
+1. [DONE] ~~Add challenge KPIs:~~
 - adherence
 - streaks
 - baseline vs current
