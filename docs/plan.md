@@ -33,6 +33,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 3 merged: candidate review action endpoint and curation status transition guardrails with tests.
 - Slice 4 merged: reviewer decision metadata and publish prerequisites (approved source plus license metadata) with tests.
 - Slice 5 merged: candidate review queue UI with status/confidence filters and filter-preserving review actions.
+- Slice 6 merged: immutable candidate decision audit trail with admin visibility, UI audit feed, and tests.
 
 ## Phased roadmap
 
