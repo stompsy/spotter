@@ -127,6 +127,34 @@
                   <form class="mt-3 space-y-2" method="post" action="{% url 'workouts:exercise_candidate_review' candidate_id=candidate.id %}">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <div class="grid gap-2 sm:grid-cols-2">
+                      <div>
+                        <label class="block text-xs uppercase tracking-[0.2em] text-zinc-400" for="source_name_{{ candidate.id }}">Source name</label>
+                        <input class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="source_name_{{ candidate.id }}" name="source_name" value="{{ candidate.metadata.source_name|default:'' }}" placeholder="Required for publish">
+                      </div>
+                      <div>
+                        <label class="block text-xs uppercase tracking-[0.2em] text-zinc-400" for="source_url_{{ candidate.id }}">Source URL</label>
+                        <input class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="source_url_{{ candidate.id }}" name="source_url" value="{{ candidate.metadata.source_url|default:'' }}" placeholder="Required for publish">
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-xs uppercase tracking-[0.2em] text-zinc-400" for="attribution_text_{{ candidate.id }}">Attribution text</label>
+                      <input class="mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="attribution_text_{{ candidate.id }}" name="attribution_text" value="{{ candidate.metadata.attribution_text|default:'' }}" placeholder="Required for publish">
+                    </div>
+                    <div class="flex flex-wrap gap-3 text-xs text-zinc-300">
+                      <label class="inline-flex items-center gap-2">
+                        <input type="checkbox" name="media_rights_confirmed" {% if candidate.metadata.media_rights_confirmed %}checked{% endif %}>
+                        Media rights confirmed
+                      </label>
+                      <label class="inline-flex items-center gap-2">
+                        <input type="checkbox" name="content_rewritten" {% if candidate.metadata.content_rewritten %}checked{% endif %}>
+                        Content rewritten
+                      </label>
+                      <label class="inline-flex items-center gap-2">
+                        <input type="checkbox" name="safety_reviewed" {% if candidate.metadata.safety_reviewed %}checked{% endif %}>
+                        Safety reviewed
+                      </label>
+                    </div>
                     <label class="block text-xs uppercase tracking-[0.2em] text-zinc-400" for="reason_{{ candidate.id }}">Decision reason (optional)</label>
                     <input class="w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 text-sm text-zinc-100" id="reason_{{ candidate.id }}" name="reason" placeholder="Reviewer note">
                     <div class="flex flex-wrap gap-2">

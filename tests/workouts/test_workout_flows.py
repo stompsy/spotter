@@ -362,3 +362,99 @@ def test_review_action_redirects_back_to_filtered_queue(client):
     candidate.refresh_from_db()
     assert candidate.status == CurationStatus.PUBLISHED
     assert candidate.reviewed_by_id == user.id
+
+
+@pytest.mark.django_db
+def test_review_action_persists_structured_metadata_fields(client):
+    user_model = get_user_model()
+    reviewer = user_model.objects.create_user(username="reviewer_meta", password="pw")
+    permission = Permission.objects.get(codename="review_exercisecandidate")
+    reviewer.user_permissions.add(permission)
+
+    source = ExerciseSource.objects.create(
+        name="Structured metadata source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/structured-metadata-source.txt",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Weighted Pull-Up",
+        normalized_name="weighted pull-up",
+        confidence=0.85,
+        status=CurationStatus.NEEDS_REVIEW,
+        metadata={"existing_key": "preserved"},
+    )
+
+    client.force_login(reviewer)
+    response = client.post(
+        reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id}),
+        {
+            "action": "send_back",
+            "reason": "Needs cleanup",
+            "source_name": "ACE",
+            "source_url": "https://example.com/exercises/weighted-pull-up",
+            "attribution_text": "Adapted from ACE guide",
+            "media_rights_confirmed": "on",
+            "content_rewritten": "on",
+        },
+        follow=False,
+    )
+
+    assert response.status_code == 302
+    candidate.refresh_from_db()
+    assert candidate.status == CurationStatus.DRAFT
+    assert candidate.metadata["existing_key"] == "preserved"
+    assert candidate.metadata["source_name"] == "ACE"
+    assert (
+        candidate.metadata["source_url"]
+        == "https://example.com/exercises/weighted-pull-up"
+    )
+    assert candidate.metadata["attribution_text"] == "Adapted from ACE guide"
+    assert candidate.metadata["media_rights_confirmed"] is True
+    assert candidate.metadata["content_rewritten"] is True
+    assert candidate.metadata["safety_reviewed"] is False
+
+
+@pytest.mark.django_db
+def test_review_action_without_helper_fields_does_not_mutate_metadata(client):
+    user_model = get_user_model()
+    reviewer = user_model.objects.create_user(username="reviewer_no_meta", password="pw")
+    permission = Permission.objects.get(codename="review_exercisecandidate")
+    reviewer.user_permissions.add(permission)
+
+    source = ExerciseSource.objects.create(
+        name="Legacy metadata source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/legacy-metadata-source.txt",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Band Pull-Apart",
+        normalized_name="band pull-apart",
+        confidence=0.9,
+        status=CurationStatus.NEEDS_REVIEW,
+        metadata={
+            "source_name": "Legacy",
+            "media_rights_confirmed": True,
+            "custom": "value",
+        },
+    )
+
+    client.force_login(reviewer)
+    response = client.post(
+        reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id}),
+        {
+            "action": "approve",
+            "reason": "Looks good",
+        },
+        follow=False,
+    )
+
+    assert response.status_code == 302
+    candidate.refresh_from_db()
+    assert candidate.status == CurationStatus.APPROVED
+    assert candidate.metadata == {
+        "source_name": "Legacy",
+        "media_rights_confirmed": True,
+        "custom": "value",
+    }
