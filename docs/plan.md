@@ -27,12 +27,14 @@ The original plan lived in session memory and was not visible in the workspace t
 ### In progress quality baseline
 - Focused tests exist for community moderation and notifications inbox/read actions.
 - Lint and Django checks are integrated into regular workflow.
+- A first end-to-end smoke journey test now exercises signup, join request review (approve/reject), notifications read flow, and workout logging persistence.
+- A deployment runbook draft now documents migrate, ensure_superuser, seed policy, health checks, and reminder scheduling steps.
 
 ## Remaining high-value work
 
 ### 1. End-to-end hardening
-- Add smoke tests for signup, join, approve/reject, notifications, and workout logging paths.
-- Add deployment runbook steps for migrate, ensure_superuser, seed policy, and health checks.
+- Expand smoke coverage and split into targeted scenarios as needed for CI diagnostics.
+- Keep deployment runbook aligned with platform-specific operational constraints.
 
 ## Suggested next implementation step
 Implement end-to-end hardening next with smoke tests and a deployment runbook so core flows remain stable in CI and release operations.
