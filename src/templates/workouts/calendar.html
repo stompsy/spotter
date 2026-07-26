@@ -50,6 +50,16 @@
                       {% endif %}
                       {% if entry.assignment.recurs_every_days %}• every {{ entry.assignment.recurs_every_days }} days{% endif %}
                     {% endif %}
+                    <span class="ml-2 inline-flex flex-wrap gap-2">
+                      <a class="text-brand-neon hover:underline" href="{{ entry.workout_url }}">Open workout</a>
+                      <a class="text-brand-neon hover:underline" href="{{ entry.logs_url }}">Log workout</a>
+                      {% if entry.notes_url %}
+                        <a class="text-brand-neon hover:underline" href="{{ entry.notes_url }}">View notes</a>
+                      {% endif %}
+                      {% if entry.challenge_progress_url %}
+                        <a class="text-brand-neon hover:underline" href="{{ entry.challenge_progress_url }}">Challenge progress</a>
+                      {% endif %}
+                    </span>
                   </li>
                 {% endfor %}
               </ul>

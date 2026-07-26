@@ -1173,6 +1173,7 @@ def test_plan_calendar_view_shows_challenge_day_schedule_entries(client):
         title="Foundation",
         focus_area="Core",
         target_duration_minutes=10,
+        notes="Day 1 note",
     )
     WorkoutChallengeDay.objects.create(
         plan=plan,
@@ -1209,6 +1210,13 @@ def test_plan_calendar_view_shows_challenge_day_schedule_entries(client):
     assert "Challenge day 3" in content
     assert "Foundation" in content
     assert "Finish" in content
+    assert "Open workout" in content
+    assert "Log workout" in content
+    assert "View notes" in content
+    assert "Challenge progress" in content
+    assert f'/progress/logs/?plan={plan.id}&amp;days=all' in content
+    day_one = plan.challenge_days.get(day_number=1)
+    assert f'#challenge-day-{day_one.id}' in content
 
 
 @pytest.mark.django_db
