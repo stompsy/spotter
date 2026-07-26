@@ -454,4 +454,4 @@ def _can_view_plan(user, plan: WorkoutPlan) -> bool:
 
 
 def _can_review_candidates(user) -> bool:
-    return user.is_staff or user.is_superuser
+    return user.is_superuser or user.has_perm("workouts.review_exercisecandidate")
