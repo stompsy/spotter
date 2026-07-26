@@ -1331,6 +1331,134 @@ def test_plan_calendar_view_displays_rest_state_for_empty_days(client):
 
 
 @pytest.mark.django_db
+def test_calendar_view_shows_coach_overlay_for_plan_manager(client):
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="calendar_owner_overlay",
+        email="calendar_owner_overlay@example.com",
+        password="pw",
+    )
+    athlete = user_model.objects.create_user(
+        username="overlay_athlete",
+        email="overlay_athlete@example.com",
+        password="pw",
+    )
+    community = Community.objects.create(
+        name="Overlay Crew",
+        slug="overlay-crew",
+        created_by=owner,
+    )
+    CommunityMembership.objects.create(
+        community=community,
+        user=owner,
+        role=MembershipRole.OWNER,
+        status=MembershipStatus.ACTIVE,
+    )
+    CommunityMembership.objects.create(
+        community=community,
+        user=athlete,
+        role=MembershipRole.MEMBER,
+        status=MembershipStatus.ACTIVE,
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Overlay Calendar Plan",
+        slug="overlay-calendar-plan",
+        description="",
+        created_by=owner,
+        community=community,
+    )
+    WorkoutPlanAssignment.objects.create(
+        plan=plan,
+        assigned_to=athlete,
+        assigned_community=community,
+        starts_on=timezone.localdate(),
+        is_active=True,
+    )
+
+    client.force_login(owner)
+    response = client.get(
+        reverse("workouts:calendar", kwargs={"slug": plan.slug}),
+        {"view": "daily", "date": timezone.localdate().isoformat()},
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Coach overlay: assigned athlete overlay_athlete" in content
+    assert "Community overlay: Overlay Crew" in content
+    assert "User: overlay_athlete" in content
+
+
+@pytest.mark.django_db
+def test_calendar_view_hides_coach_overlay_for_non_manager_member(client):
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="calendar_owner_no_coach",
+        email="calendar_owner_no_coach@example.com",
+        password="pw",
+    )
+    viewer = user_model.objects.create_user(
+        username="calendar_member_viewer",
+        email="calendar_member_viewer@example.com",
+        password="pw",
+    )
+    athlete = user_model.objects.create_user(
+        username="calendar_member_athlete",
+        email="calendar_member_athlete@example.com",
+        password="pw",
+    )
+    community = Community.objects.create(
+        name="Overlay Access Crew",
+        slug="overlay-access-crew",
+        created_by=owner,
+    )
+    CommunityMembership.objects.create(
+        community=community,
+        user=owner,
+        role=MembershipRole.OWNER,
+        status=MembershipStatus.ACTIVE,
+    )
+    CommunityMembership.objects.create(
+        community=community,
+        user=viewer,
+        role=MembershipRole.MEMBER,
+        status=MembershipStatus.ACTIVE,
+    )
+    CommunityMembership.objects.create(
+        community=community,
+        user=athlete,
+        role=MembershipRole.MEMBER,
+        status=MembershipStatus.ACTIVE,
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Overlay Restricted Plan",
+        slug="overlay-restricted-plan",
+        description="",
+        created_by=owner,
+        community=community,
+    )
+    WorkoutPlanAssignment.objects.create(
+        plan=plan,
+        assigned_to=athlete,
+        assigned_community=community,
+        starts_on=timezone.localdate(),
+        is_active=True,
+    )
+
+    client.force_login(viewer)
+    response = client.get(
+        reverse("workouts:calendar", kwargs={"slug": plan.slug}),
+        {"view": "daily", "date": timezone.localdate().isoformat()},
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Community overlay: Overlay Access Crew" in content
+    assert "Coach overlay: assigned athlete" not in content
+    assert "User assignment" in content
+    assert "User: calendar_member_athlete" not in content
+
+
+@pytest.mark.django_db
 def test_user_can_create_and_archive_exercise(client):
     user_model = get_user_model()
     user = user_model.objects.create_user(
