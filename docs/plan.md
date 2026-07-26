@@ -62,6 +62,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 32 merged: Phase 3 split completion behavior with per-day partial logging, cumulative target progress states, and challenge completion flow coverage.
 - Slice 33 merged: Phase 3 challenge validation rules for balance, recovery spacing, and warm-up/cooldown coverage with publish-time guardrails and validation feedback tests.
 - Slice 34 merged: Phase 4 schedule layer preview sourced from assignments and challenge-day sequencing with detail-view visibility and coverage tests.
+- Slice 35 merged: Phase 4 calendar views (daily, rolling 3-day, weekly, monthly, yearly) backed by assignment/challenge schedule expansion and view coverage tests.
 
 ## Phased roadmap
 
@@ -112,7 +113,7 @@ Progress notation used below:
 
 ### Phase 4 - Calendar System (Full View Set in First Release)
 1. [DONE] ~~Introduce schedule layer from assignments and challenge days.~~
-2. [PENDING] Build main user calendar views:
+2. [DONE] ~~Build main user calendar views:~~
 - daily
 - rolling 3-day
 - weekly
