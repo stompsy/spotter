@@ -69,9 +69,6 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 39 merged: Phase 5 challenge KPI panel for adherence, streaks, baseline-vs-current progress, and checkpoint deltas with progress-flow coverage tests.
 - Slice 40 merged: Phase 5 body-area and movement-type volume summaries in progress insights with aggregation coverage tests.
 - Slice 41 merged: Phase 5 load-safety alerts for abrupt spikes and sustained high-RPE streaks plus explicit educational/non-diagnostic insight copy with progress-flow coverage tests.
-- Slice 42 merged: Phase 6 first curated bundles seeding command for warm-up/calisthenics/cooldown plus 30-day abs and lunge challenge seeds with idempotent command coverage.
-- Slice 43 merged: Phase 6 ingestion adapters expanded to document, dataset, media, and manual paths with adapter routing and ingestion command coverage tests.
-- Slice 44 merged: Phase 6 ingestion quality checks added for duplicate detection, instruction completeness score, and safety completeness score with candidate metadata coverage tests.
 
 ## Phased roadmap
 
@@ -148,7 +145,7 @@ Progress notation used below:
 - Tier A structured exercise datasets
 - Tier B media sources with asset-level licensing
 - Tier C safety overlays
-3. [DONE] ~~Add ingestion adapters:~~
+3. [PENDING] Add ingestion adapters:
 - dataset adapter
 - media adapter
 - manual editor adapter
@@ -158,7 +155,7 @@ Progress notation used below:
 - approved
 - published
 - deprecated
-5. [DONE] ~~Add content quality checks:~~
+5. [PENDING] Add content quality checks:
 - duplicate detection
 - instruction completeness score
 - safety completeness score
@@ -169,7 +166,7 @@ Progress notation used below:
 - OCR fallback (pypdfium2 plus pytesseract)
 - normalization and candidate extraction
 - low-confidence review queue
-8. [DONE] ~~Build first curated bundles:~~
+8. [PENDING] Build first curated bundles:
 - warm-up
 - calisthenics
 - cooldown
