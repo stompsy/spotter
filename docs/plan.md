@@ -59,6 +59,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 29 merged: Phase 3 guided plan composer starter templates with reusable short/medium/long insertions, challenge-day starter support, and focused composer workflow coverage.
 - Slice 30 merged: Phase 3 adaptive template suggestions with inventory-aware short/medium/long recommendation logic and guided composer suggestion coverage tests.
 - Slice 31 merged: Phase 3 challenge wizard with focus-area, duration, progression style, checkpoint cadence inputs, scaffolded challenge-day generation, and wizard behavior tests.
+- Slice 32 merged: Phase 3 split completion behavior with per-day partial logging, cumulative target progress states, and challenge completion flow coverage.
 
 ## Phased roadmap
 
@@ -104,7 +105,7 @@ Progress notation used below:
 1. [DONE] ~~Build guided plan composer with reusable cards and day templates.~~
 2. [DONE] ~~Support short/medium/long templates with suggestion logic.~~
 3. [DONE] ~~Add challenge wizard (focus area, duration, progression, checkpoints).~~
-4. [PENDING] Support split completion behavior for daily targets.
+4. [DONE] ~~Support split completion behavior for daily targets.~~
 5. [PENDING] Add validation rules for balance, recovery spacing, and warm-up/cooldown coverage.
 
 ### Phase 4 - Calendar System (Full View Set in First Release)
