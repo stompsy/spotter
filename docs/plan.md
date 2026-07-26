@@ -52,6 +52,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 22 merged: Phase 1 challenge-day structure model with day numbering guardrails, optional plan-item day linkage, detail view visibility, and test coverage.
 - Slice 23 merged: Phase 1 optional phased periodization model for program plans with week-range guardrails, admin visibility, detail rendering, and test coverage.
 - Slice 24 merged: Phase 1 workout-role category taxonomy expansion with broader exercise categories, backward-compatible choice preservation, migration, and flow test coverage.
+- Slice 25 merged: Phase 2 exercise library UI upgrade with richer exercise cards, grouped authoring form sections, clearer library state badges, and page-render coverage.
 
 ## Phased roadmap
 
@@ -88,7 +89,7 @@ Progress notation used below:
 6. [DONE] ~~Add optional phased periodization model.~~
 
 ### Phase 2 - Exercise Card Authoring and Discovery UX
-1. [PENDING] Upgrade exercise management UI for rich card creation/editing and moderation state.
+1. [DONE] ~~Upgrade exercise management UI for rich card creation/editing and moderation state.~~
 2. [PENDING] Render exercise cards with image/media, body-area badges, safe-form instructions, common prescriptions, and caution notes.
 3. [PENDING] Add search/filter/sort by movement type, body area, equipment, level, and duration fit.
 4. [PENDING] Add copy-safe challenge presets (Abs 30-day, Lunge 30-day first).
