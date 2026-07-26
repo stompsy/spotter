@@ -8,6 +8,20 @@ class ExerciseCategory(models.TextChoices):
     POST_WORKOUT_REGENERATION = "post_workout_regeneration", "Post-workout regeneration"
 
 
+class ExerciseSourceType(models.TextChoices):
+    DOCUMENT = "document", "Document"
+    WEB = "web", "Web reference"
+    DATASET = "dataset", "Dataset"
+
+
+class CurationStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    NEEDS_REVIEW = "needs_review", "Needs review"
+    APPROVED = "approved", "Approved"
+    PUBLISHED = "published", "Published"
+    DEPRECATED = "deprecated", "Deprecated"
+
+
 class Exercise(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -19,6 +33,55 @@ class Exercise(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class ExerciseSource(models.Model):
+    name = models.CharField(max_length=200)
+    source_type = models.CharField(
+        max_length=32,
+        choices=ExerciseSourceType.choices,
+        default=ExerciseSourceType.DOCUMENT,
+    )
+    location = models.CharField(max_length=500, unique=True)
+    license_name = models.CharField(max_length=200, blank=True)
+    is_approved = models.BooleanField(default=False)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class ExerciseCandidate(models.Model):
+    source = models.ForeignKey(
+        ExerciseSource,
+        on_delete=models.CASCADE,
+        related_name="candidates",
+    )
+    raw_name = models.CharField(max_length=200)
+    normalized_name = models.CharField(max_length=200)
+    status = models.CharField(
+        max_length=32,
+        choices=CurationStatus.choices,
+        default=CurationStatus.DRAFT,
+    )
+    confidence = models.DecimalField(max_digits=4, decimal_places=3, default=0.0)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["normalized_name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source", "normalized_name"],
+                name="unique_candidate_name_per_source",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.normalized_name
 
 
 class WorkoutPlan(models.Model):
