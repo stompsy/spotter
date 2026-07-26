@@ -41,6 +41,7 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - Slice 11 merged: Phase 0 content policy, admin review checklist, and reusable guidance disclaimer pattern.
 - Slice 12 merged: publish-time metadata enforcement for attribution and safety guardrails with tests.
 - Slice 13 merged: admin form-level publish validation and reviewer guidance help text for required metadata.
+- Slice 14 merged: structured metadata helper fields in admin for publish requirements with form round-trip tests.
 
 ## Phased roadmap
 
