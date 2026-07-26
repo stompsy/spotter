@@ -16,6 +16,7 @@ from django.views.generic import DetailView, ListView
 from apps.communities.models import CommunityMembership, MembershipRole, MembershipStatus
 
 from .forms import (
+    ChallengeWizardForm,
     ExerciseForm,
     ExerciseMediaForm,
     WorkoutPlanAssignmentForm,
@@ -462,10 +463,31 @@ class WorkoutPlanListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["plan_form"] = kwargs.get("plan_form") or WorkoutPlanForm(user=self.request.user)
+        context["challenge_wizard_form"] = (
+            kwargs.get("challenge_wizard_form") or ChallengeWizardForm()
+        )
         context["challenge_preset_options"] = CHALLENGE_PRESET_OPTIONS
         return context
 
     def post(self, request: HttpRequest) -> HttpResponse:
+        action = request.POST.get("action", "").strip().lower()
+        if action == "challenge_wizard":
+            challenge_wizard_form = ChallengeWizardForm(request.POST)
+            if challenge_wizard_form.is_valid():
+                plan = _create_challenge_plan_from_wizard(
+                    request.user,
+                    challenge_wizard_form.cleaned_data,
+                )
+                messages.success(request, f"Challenge wizard created: {plan.name}.")
+                return redirect("workouts:detail", slug=plan.slug)
+
+            self.object_list = self.get_queryset()
+            response = self.render_to_response(
+                self.get_context_data(challenge_wizard_form=challenge_wizard_form)
+            )
+            response.status_code = 400
+            return response
+
         preset_key = request.POST.get("preset_key", "").strip().lower()
         if preset_key:
             try:
@@ -882,6 +904,111 @@ def _next_available_challenge_day(plan: WorkoutPlan) -> WorkoutChallengeDay | No
         if not day.items.exists():
             return day
     return challenge_days.first()
+
+
+def _create_challenge_plan_from_wizard(user, data: dict[str, object]) -> WorkoutPlan:
+    focus_area = str(data["focus_area"]).strip()
+    duration_days = int(data["duration_days"])
+    progression_style = str(data["progression_style"])
+    checkpoint_interval_days = int(data["checkpoint_interval_days"])
+
+    plan_name = f"{duration_days}-Day {focus_area} Challenge"
+    plan = WorkoutPlan.objects.create(
+        name=plan_name,
+        slug=_build_unique_plan_slug(plan_name),
+        description=(
+            f"Guided challenge wizard plan focused on {focus_area.lower()} with "
+            f"{_progression_style_label(progression_style).lower()} and "
+            f"checkpoints every {checkpoint_interval_days} days."
+        ),
+        created_by=user,
+        plan_type=WorkoutPlanType.CHALLENGE,
+        duration_band=_duration_band_for_challenge_days(duration_days),
+        challenge_duration_days=duration_days,
+        challenge_focus_area=focus_area,
+        is_template=False,
+        is_published=False,
+    )
+
+    base_duration = _challenge_base_duration_minutes(plan.duration_band)
+    for day_number in range(1, duration_days + 1):
+        checkpoint_due = (
+            day_number % checkpoint_interval_days == 0 or day_number == duration_days
+        )
+        progression_delta = _challenge_progression_delta(
+            progression_style,
+            day_number,
+            duration_days,
+        )
+        target_duration = max(base_duration + progression_delta, 8)
+
+        notes = _challenge_day_progression_note(progression_style)
+        if checkpoint_due:
+            notes = (
+                f"{notes} Checkpoint: log completion quality and update the next block."
+            )
+
+        WorkoutChallengeDay.objects.create(
+            plan=plan,
+            day_number=day_number,
+            title=f"Day {day_number}",
+            focus_area=focus_area,
+            target_duration_minutes=target_duration,
+            notes=notes,
+        )
+
+    return plan
+
+
+def _duration_band_for_challenge_days(duration_days: int) -> str:
+    if duration_days <= 21:
+        return WorkoutPlanDurationBand.SHORT
+    if duration_days <= 42:
+        return WorkoutPlanDurationBand.MEDIUM
+    return WorkoutPlanDurationBand.LONG
+
+
+def _challenge_base_duration_minutes(duration_band: str) -> int:
+    if duration_band == WorkoutPlanDurationBand.MEDIUM:
+        return 18
+    if duration_band == WorkoutPlanDurationBand.LONG:
+        return 26
+    return 12
+
+
+def _challenge_progression_delta(
+    progression_style: str,
+    day_number: int,
+    duration_days: int,
+) -> int:
+    if progression_style == "linear":
+        return int(((day_number - 1) / max(duration_days - 1, 1)) * 8)
+    if progression_style == "step":
+        return ((day_number - 1) // 7) * 2
+
+    wave_cycle = [0, 2, 1, 3, 1, 2, 0]
+    return wave_cycle[(day_number - 1) % len(wave_cycle)]
+
+
+def _progression_style_label(progression_style: str) -> str:
+    labels = {
+        "linear": "Linear build",
+        "step": "Step-up blocks",
+        "wave": "Wave loading",
+    }
+    return labels.get(progression_style, "Linear build")
+
+
+def _challenge_day_progression_note(progression_style: str) -> str:
+    notes = {
+        "linear": "Progression: add a small amount of work while maintaining form.",
+        "step": "Progression: hold intensity in blocks, then step up workload.",
+        "wave": "Progression: alternate harder and easier days to manage recovery.",
+    }
+    return notes.get(
+        progression_style,
+        "Progression: add a small amount of work while maintaining form.",
+    )
 
 
 def _create_challenge_preset_plan(user, preset_key: str) -> WorkoutPlan:

@@ -153,6 +153,34 @@ class WorkoutPlanForm(forms.ModelForm):
         return cleaned_data
 
 
+class ChallengeWizardForm(forms.Form):
+    PROGRESSION_CHOICES = [
+        ("linear", "Linear build"),
+        ("step", "Step-up blocks"),
+        ("wave", "Wave loading"),
+    ]
+
+    focus_area = forms.CharField(max_length=120)
+    duration_days = forms.IntegerField(min_value=7, max_value=90)
+    progression_style = forms.ChoiceField(choices=PROGRESSION_CHOICES)
+    checkpoint_interval_days = forms.IntegerField(min_value=3, max_value=21)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        base_class = (
+            "mt-1 w-full rounded-lg border border-white/20 bg-black/30 px-3 py-2 "
+            "text-sm text-zinc-100"
+        )
+        for field in self.fields.values():
+            field.widget.attrs["class"] = base_class
+
+    def clean_focus_area(self):
+        focus_area = self.cleaned_data["focus_area"].strip()
+        if not focus_area:
+            raise forms.ValidationError("Focus area is required.")
+        return focus_area
+
+
 class WorkoutPlanItemForm(forms.ModelForm):
     class Meta:
         model = WorkoutPlanItem
