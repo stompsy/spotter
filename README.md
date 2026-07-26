@@ -145,3 +145,26 @@ Options:
 
 - `--days-ahead N`: include assignments starting up to N days ahead
 - `--dry-run`: preview candidates without writing notifications
+
+## Exercise Reviewer Onboarding
+
+Use the reviewer bootstrap command to provision candidate-curation reviewers.
+
+Create or update the `Exercise Reviewers` group and ensure it has the
+`review_exercisecandidate` permission:
+
+- `python manage.py bootstrap_exercise_reviewers`
+
+Assign one or more existing users to the reviewer group:
+
+- `python manage.py bootstrap_exercise_reviewers --usernames alice bob`
+
+Production-style release flow (after migrations):
+
+1. `python manage.py migrate --noinput`
+2. `python manage.py bootstrap_exercise_reviewers --usernames <reviewer_username>`
+
+Notes:
+
+- The command is idempotent and safe to rerun.
+- If any provided username does not exist, the command exits with an error.
