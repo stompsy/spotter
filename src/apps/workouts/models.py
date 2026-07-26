@@ -87,6 +87,15 @@ class ExerciseCandidate(models.Model):
         default=CurationStatus.DRAFT,
     )
     confidence = models.DecimalField(max_digits=4, decimal_places=3, default=0.0)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_exercise_candidates",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    decision_reason = models.TextField(blank=True)
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -135,6 +144,11 @@ class ExerciseCandidate(models.Model):
             raise ValidationError(
                 f"Invalid status transition from {self.status} to {new_status}"
             )
+        if new_status == CurationStatus.PUBLISHED:
+            if not self.source.is_approved or not self.source.license_name.strip():
+                raise ValidationError(
+                    "Cannot publish candidate without an approved source and license metadata"
+                )
         self.status = new_status
 
 

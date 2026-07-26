@@ -48,7 +48,16 @@ class ExerciseSourceAdmin(admin.ModelAdmin):
 
 @admin.register(ExerciseCandidate)
 class ExerciseCandidateAdmin(admin.ModelAdmin):
-    list_display = ("normalized_name", "raw_name", "source", "status", "confidence", "updated_at")
+    list_display = (
+        "normalized_name",
+        "raw_name",
+        "source",
+        "status",
+        "confidence",
+        "reviewed_by",
+        "reviewed_at",
+        "updated_at",
+    )
     list_filter = ("status", "source__source_type")
     search_fields = ("normalized_name", "raw_name", "source__name")
 

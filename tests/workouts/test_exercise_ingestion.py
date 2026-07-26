@@ -159,6 +159,35 @@ def test_exercise_candidate_transition_guardrails_allow_and_reject_paths():
 
 
 @pytest.mark.django_db
+def test_exercise_candidate_publish_requires_approved_source_and_license():
+    source = ExerciseSource.objects.create(
+        name="Publish gate source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/publish-gate-source.txt",
+        is_approved=False,
+        license_name="",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Forward Lunges",
+        normalized_name="forward lunge",
+        status=CurationStatus.APPROVED,
+    )
+
+    with pytest.raises(ValidationError):
+        candidate.transition_to(CurationStatus.PUBLISHED)
+
+    source.is_approved = True
+    source.license_name = "CC BY 4.0"
+    source.save(update_fields=["is_approved", "license_name", "updated_at"])
+
+    candidate.transition_to(CurationStatus.PUBLISHED)
+    candidate.save(update_fields=["status", "updated_at"])
+    candidate.refresh_from_db()
+    assert candidate.status == CurationStatus.PUBLISHED
+
+
+@pytest.mark.django_db
 def test_exercise_candidate_review_action_endpoint_transitions_status(client):
     user_model = get_user_model()
     user = user_model.objects.create_user(
@@ -225,3 +254,74 @@ def test_exercise_candidate_review_action_rejects_invalid_transition(client):
     assert response.status_code == 302
     candidate.refresh_from_db()
     assert candidate.status == CurationStatus.DRAFT
+
+
+@pytest.mark.django_db
+def test_exercise_candidate_review_action_publish_rejected_when_source_not_ready(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="candidate_reviewer_publish_blocked",
+        email="candidate_reviewer_publish_blocked@example.com",
+        password="pw",
+    )
+    source = ExerciseSource.objects.create(
+        name="Publish blocked source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/publish-blocked-source.txt",
+        is_approved=False,
+        license_name="",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Forward Lunges",
+        normalized_name="forward lunge",
+        status=CurationStatus.APPROVED,
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id}),
+        {"action": "publish", "reason": "ready to publish"},
+    )
+
+    assert response.status_code == 302
+    candidate.refresh_from_db()
+    assert candidate.status == CurationStatus.APPROVED
+    assert candidate.reviewed_by is None
+    assert candidate.reviewed_at is None
+
+
+@pytest.mark.django_db
+def test_exercise_candidate_review_action_persists_reviewer_metadata(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="candidate_reviewer_publish_allowed",
+        email="candidate_reviewer_publish_allowed@example.com",
+        password="pw",
+    )
+    source = ExerciseSource.objects.create(
+        name="Publish allowed source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/publish-allowed-source.txt",
+        is_approved=True,
+        license_name="CC BY 4.0",
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Forward Lunges",
+        normalized_name="forward lunge",
+        status=CurationStatus.APPROVED,
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id}),
+        {"action": "publish", "reason": "Validated source and license"},
+    )
+
+    assert response.status_code == 302
+    candidate.refresh_from_db()
+    assert candidate.status == CurationStatus.PUBLISHED
+    assert candidate.reviewed_by == user
+    assert candidate.reviewed_at is not None
+    assert candidate.decision_reason == "Validated source and license"
