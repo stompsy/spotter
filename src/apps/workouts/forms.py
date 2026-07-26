@@ -12,7 +12,17 @@ from .models import Exercise, WorkoutPlan, WorkoutPlanAssignment, WorkoutPlanIte
 class ExerciseForm(forms.ModelForm):
     class Meta:
         model = Exercise
-        fields = ["name", "category", "description", "instructions", "is_active"]
+        fields = [
+            "name",
+            "category",
+            "movement_type",
+            "primary_body_area",
+            "difficulty_level",
+            "equipment_requirement",
+            "description",
+            "instructions",
+            "is_active",
+        ]
 
     def clean_name(self):
         name = self.cleaned_data["name"].strip()

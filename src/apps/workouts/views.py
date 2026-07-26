@@ -18,9 +18,13 @@ from .forms import ExerciseForm, WorkoutPlanAssignmentForm, WorkoutPlanForm, Wor
 from .models import (
     CurationStatus,
     Exercise,
+    ExerciseBodyArea,
     ExerciseCandidate,
     ExerciseCandidateDecision,
     ExerciseCategory,
+    ExerciseDifficultyLevel,
+    ExerciseEquipmentRequirement,
+    ExerciseMovementType,
     WorkoutPlan,
     WorkoutPlanAssignment,
 )
@@ -100,6 +104,12 @@ class ExerciseListView(LoginRequiredMixin, ListView):
         )[:12]
         context["exercise_form"] = kwargs.get("exercise_form") or ExerciseForm()
         context["exercise_category_choices"] = ExerciseCategory.choices
+        context["exercise_movement_type_choices"] = ExerciseMovementType.choices
+        context["exercise_body_area_choices"] = ExerciseBodyArea.choices
+        context["exercise_difficulty_level_choices"] = ExerciseDifficultyLevel.choices
+        context["exercise_equipment_requirement_choices"] = (
+            ExerciseEquipmentRequirement.choices
+        )
         context["can_review_candidates"] = _can_review_candidates(self.request.user)
         context["candidates"] = candidates
         context["recent_candidate_decisions"] = recent_decisions

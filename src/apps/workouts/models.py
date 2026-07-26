@@ -9,6 +9,47 @@ class ExerciseCategory(models.TextChoices):
     POST_WORKOUT_REGENERATION = "post_workout_regeneration", "Post-workout regeneration"
 
 
+class ExerciseMovementType(models.TextChoices):
+    UNSPECIFIED = "unspecified", "Unspecified"
+    PUSH = "push", "Push"
+    PULL = "pull", "Pull"
+    HINGE = "hinge", "Hinge"
+    SQUAT = "squat", "Squat"
+    LUNGE = "lunge", "Lunge"
+    CARRY = "carry", "Carry"
+    ROTATION = "rotation", "Rotation"
+    CORE = "core", "Core"
+    MOBILITY = "mobility", "Mobility"
+
+
+class ExerciseBodyArea(models.TextChoices):
+    UNSPECIFIED = "unspecified", "Unspecified"
+    FULL_BODY = "full_body", "Full body"
+    UPPER_BODY = "upper_body", "Upper body"
+    LOWER_BODY = "lower_body", "Lower body"
+    CORE = "core", "Core"
+    SHOULDERS = "shoulders", "Shoulders"
+    HIPS = "hips", "Hips"
+    BACK = "back", "Back"
+    CHEST = "chest", "Chest"
+    LEGS = "legs", "Legs"
+
+
+class ExerciseDifficultyLevel(models.TextChoices):
+    UNSPECIFIED = "unspecified", "Unspecified"
+    BEGINNER = "beginner", "Beginner"
+    INTERMEDIATE = "intermediate", "Intermediate"
+    ADVANCED = "advanced", "Advanced"
+
+
+class ExerciseEquipmentRequirement(models.TextChoices):
+    UNSPECIFIED = "unspecified", "Unspecified"
+    NONE = "none", "None"
+    MINIMAL = "minimal", "Minimal"
+    STANDARD_GYM = "standard_gym", "Standard gym"
+    SPECIALIZED = "specialized", "Specialized"
+
+
 class ExerciseSourceType(models.TextChoices):
     DOCUMENT = "document", "Document"
     WEB = "web", "Web reference"
@@ -46,6 +87,26 @@ class Exercise(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
     category = models.CharField(max_length=64, choices=ExerciseCategory.choices)
+    movement_type = models.CharField(
+        max_length=32,
+        choices=ExerciseMovementType.choices,
+        default=ExerciseMovementType.UNSPECIFIED,
+    )
+    primary_body_area = models.CharField(
+        max_length=32,
+        choices=ExerciseBodyArea.choices,
+        default=ExerciseBodyArea.UNSPECIFIED,
+    )
+    difficulty_level = models.CharField(
+        max_length=32,
+        choices=ExerciseDifficultyLevel.choices,
+        default=ExerciseDifficultyLevel.UNSPECIFIED,
+    )
+    equipment_requirement = models.CharField(
+        max_length=32,
+        choices=ExerciseEquipmentRequirement.choices,
+        default=ExerciseEquipmentRequirement.UNSPECIFIED,
+    )
     description = models.TextField(blank=True)
     instructions = models.TextField(blank=True)
     metadata = models.JSONField(default=dict, blank=True)
