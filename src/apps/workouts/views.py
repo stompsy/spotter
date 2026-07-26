@@ -560,6 +560,9 @@ class WorkoutPlanDetailView(LoginRequiredMixin, DetailView):
             user=self.request.user,
         )
         context["challenge_days"] = challenge_days
+        validation_issues = _collect_plan_structure_validation_issues(self.object)
+        context["plan_validation_issues"] = validation_issues
+        context["plan_validation_passed"] = not validation_issues
         context["assignments"] = self.object.assignments.select_related(
             "assigned_to", "assigned_community"
         ).order_by("-created_at")
@@ -625,6 +628,17 @@ class WorkoutPlanPublishToggleView(LoginRequiredMixin, View):
         plan = get_object_or_404(WorkoutPlan, slug=slug)
         if not _can_manage_plan(request.user, plan):
             raise Http404("Workout plan not found")
+
+        if not plan.is_published and plan.plan_type == WorkoutPlanType.CHALLENGE:
+            issues = _collect_plan_structure_validation_issues(plan)
+            if issues:
+                messages.error(
+                    request,
+                    "Cannot publish challenge plan until validation issues are resolved.",
+                )
+                for issue in issues:
+                    messages.error(request, f"- {issue}")
+                return redirect("workouts:detail", slug=plan.slug)
 
         plan.is_published = not plan.is_published
         plan.save(update_fields=["is_published"])
@@ -1093,6 +1107,94 @@ def _annotate_challenge_day_completion_state(
             day.user_completion_state = "complete"
         else:
             day.user_completion_state = "partial"
+
+
+def _collect_plan_structure_validation_issues(plan: WorkoutPlan) -> list[str]:
+    if plan.plan_type != WorkoutPlanType.CHALLENGE:
+        return []
+
+    issues: list[str] = []
+    challenge_days = list(plan.challenge_days.order_by("day_number", "id"))
+    if not challenge_days:
+        return ["Challenge plans must include challenge days before publishing."]
+
+    day_items_map = {
+        day.id: list(
+            plan.items.filter(challenge_day=day).select_related("exercise").order_by("order", "id")
+        )
+        for day in challenge_days
+    }
+    all_items = [item for day in challenge_days for item in day_items_map[day.id]]
+    if not all_items:
+        return ["Challenge plans must include day-linked exercises before publishing."]
+
+    warmup_items = [
+        item
+        for item in all_items
+        if item.exercise.category == ExerciseCategory.MOVEMENT_PREPARATION
+    ]
+    cooldown_items = [
+        item
+        for item in all_items
+        if item.exercise.category == ExerciseCategory.POST_WORKOUT_REGENERATION
+    ]
+    if not warmup_items:
+        issues.append("Warm-up coverage is required (add movement preparation items).")
+    if not cooldown_items:
+        issues.append(
+            "Cooldown coverage is required (add post-workout regeneration items)."
+        )
+
+    movement_counts: dict[str, int] = {}
+    for item in all_items:
+        movement_type = item.exercise.movement_type
+        if movement_type == ExerciseMovementType.UNSPECIFIED:
+            continue
+        movement_counts[movement_type] = movement_counts.get(movement_type, 0) + 1
+
+    if len(movement_counts) < 2:
+        issues.append(
+            "Balance rule: include at least two distinct movement types across challenge items."
+        )
+
+    dominant_share_threshold = 0.75
+    if movement_counts:
+        total_labeled = sum(movement_counts.values())
+        max_labeled = max(movement_counts.values())
+        if total_labeled > 0 and (max_labeled / total_labeled) > dominant_share_threshold:
+            issues.append(
+                "Balance rule: one movement type dominates more than 75% of challenge items."
+            )
+
+    daily_focus_sequence: list[str] = []
+    for day in challenge_days:
+        day_items = day_items_map[day.id]
+        area_counts: dict[str, int] = {}
+        for item in day_items:
+            area = item.exercise.primary_body_area
+            if area == ExerciseBodyArea.UNSPECIFIED:
+                continue
+            area_counts[area] = area_counts.get(area, 0) + 1
+        if area_counts:
+            daily_focus_sequence.append(max(area_counts, key=area_counts.get))
+
+    run_area = None
+    run_length = 0
+    for area in daily_focus_sequence:
+        if area == run_area:
+            run_length += 1
+        else:
+            run_area = area
+            run_length = 1
+
+        if run_length >= 3:
+            issues.append(
+                "Recovery spacing rule: avoid scheduling the same primary body area for 3 "
+                "consecutive challenge days."
+            )
+            break
+
+    return issues
 
 
 def _create_challenge_preset_plan(user, preset_key: str) -> WorkoutPlan:

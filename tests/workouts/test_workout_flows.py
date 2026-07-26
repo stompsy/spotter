@@ -659,6 +659,153 @@ def test_challenge_plan_manager_can_apply_challenge_day_template(client):
 
 
 @pytest.mark.django_db
+def test_challenge_plan_detail_shows_validation_issues_when_structure_is_unbalanced(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="validation_issue_owner",
+        email="validation_issue_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Validation Issue Challenge",
+        slug="validation-issue-challenge",
+        created_by=user,
+        plan_type="challenge",
+        duration_band="short",
+        challenge_duration_days=3,
+        challenge_focus_area="Core",
+    )
+    day = WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=1,
+        title="Day One",
+        focus_area="Core",
+        target_duration_minutes=12,
+    )
+    exercise = Exercise.objects.create(
+        name="Single Focus Move",
+        slug="single-focus-move",
+        category=ExerciseCategory.CORE_STABILITY,
+        movement_type=ExerciseMovementType.CORE,
+        primary_body_area=ExerciseBodyArea.CORE,
+        is_active=True,
+    )
+    WorkoutPlanItem.objects.create(
+        plan=plan,
+        challenge_day=day,
+        exercise=exercise,
+        order=1,
+        repetitions="3 x 10",
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("workouts:detail", kwargs={"slug": plan.slug}))
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Resolve the following before publishing" in content
+    assert "Warm-up coverage is required" in content
+    assert "Cooldown coverage is required" in content
+
+
+@pytest.mark.django_db
+def test_challenge_plan_publish_is_blocked_until_validation_rules_pass(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="validation_publish_owner",
+        email="validation_publish_owner@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Validation Publish Challenge",
+        slug="validation-publish-challenge",
+        created_by=user,
+        plan_type="challenge",
+        duration_band="short",
+        challenge_duration_days=2,
+        challenge_focus_area="Full body",
+        is_published=False,
+    )
+    day_1 = WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=1,
+        title="Day One",
+        focus_area="Core",
+        target_duration_minutes=12,
+    )
+    day_2 = WorkoutChallengeDay.objects.create(
+        plan=plan,
+        day_number=2,
+        title="Day Two",
+        focus_area="Lower body",
+        target_duration_minutes=12,
+    )
+
+    warmup = Exercise.objects.create(
+        name="Prep Flow",
+        slug="prep-flow",
+        category=ExerciseCategory.MOVEMENT_PREPARATION,
+        movement_type=ExerciseMovementType.MOBILITY,
+        primary_body_area=ExerciseBodyArea.FULL_BODY,
+        is_active=True,
+    )
+    core = Exercise.objects.create(
+        name="Core Bracing",
+        slug="core-bracing",
+        category=ExerciseCategory.CORE_STABILITY,
+        movement_type=ExerciseMovementType.CORE,
+        primary_body_area=ExerciseBodyArea.CORE,
+        is_active=True,
+    )
+
+    WorkoutPlanItem.objects.create(
+        plan=plan,
+        challenge_day=day_1,
+        exercise=warmup,
+        order=1,
+        repetitions="3 x 8",
+    )
+    WorkoutPlanItem.objects.create(
+        plan=plan,
+        challenge_day=day_2,
+        exercise=core,
+        order=2,
+        repetitions="3 x 8",
+    )
+
+    client.force_login(user)
+    blocked_response = client.post(
+        reverse("workouts:publish_toggle", kwargs={"slug": plan.slug}),
+    )
+    assert blocked_response.status_code == 302
+    plan.refresh_from_db()
+    assert plan.is_published is False
+
+    cooldown = Exercise.objects.create(
+        name="Cooldown Breath",
+        slug="cooldown-breath",
+        category=ExerciseCategory.POST_WORKOUT_REGENERATION,
+        movement_type=ExerciseMovementType.MOBILITY,
+        primary_body_area=ExerciseBodyArea.FULL_BODY,
+        is_active=True,
+    )
+    WorkoutPlanItem.objects.create(
+        plan=plan,
+        challenge_day=day_2,
+        exercise=cooldown,
+        order=3,
+        repetitions="2 x 5 breaths",
+    )
+
+    allowed_response = client.post(
+        reverse("workouts:publish_toggle", kwargs={"slug": plan.slug}),
+    )
+    assert allowed_response.status_code == 302
+    plan.refresh_from_db()
+    assert plan.is_published is True
+
+
+@pytest.mark.django_db
 def test_challenge_detail_shows_split_completion_controls(client):
     user_model = get_user_model()
     user = user_model.objects.create_user(
