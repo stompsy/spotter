@@ -1,3 +1,4 @@
+import csv
 from datetime import timedelta
 
 from django.contrib import messages
@@ -7,6 +8,7 @@ from django.db.models.functions import TruncDate
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.utils import timezone
+from django.views import View
 from django.views.generic import ListView
 
 from apps.communities.models import Community
@@ -16,15 +18,11 @@ from .forms import WorkoutLogForm
 from .models import WorkoutLog
 
 
-class WorkoutLogListCreateView(LoginRequiredMixin, ListView):
-    model = WorkoutLog
-    template_name = "progress/logs.html"
-    context_object_name = "logs"
-
+class ProgressFiltersMixin:
     WINDOW_DAYS_OPTIONS = [7, 14, 30, 90]
     TREND_DAYS_OPTIONS = [7, 14, 30]
 
-    def get_queryset(self):
+    def _filtered_logs_queryset(self):
         queryset = WorkoutLog.objects.filter(performed_by=self.request.user).select_related(
             "plan", "community"
         )
@@ -43,59 +41,7 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ListView):
         if community_id.isdigit():
             queryset = queryset.filter(community_id=int(community_id))
 
-        return queryset.order_by("-completed_at")
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["log_form"] = kwargs.get("log_form") or WorkoutLogForm(user=self.request.user)
-        logs_queryset = context["logs"]
-        context["insights"] = self._build_insights(logs_queryset)
-        context["rpe_trend"] = self._build_rpe_trend(logs_queryset)
-        context["filter_options"] = self._filter_options()
-        context["selected_filters"] = {
-            "days": self.request.GET.get("days", "all").strip() or "all",
-            "plan": self.request.GET.get("plan", "").strip(),
-            "community": self.request.GET.get("community", "").strip(),
-            "trend_days": str(self._trend_days_filter()),
-        }
-        return context
-
-    def post(self, request: HttpRequest) -> HttpResponse:
-        form = WorkoutLogForm(request.POST, user=request.user)
-        if form.is_valid():
-            log = form.save(commit=False)
-            log.performed_by = request.user
-            if log.plan and log.plan.community_id and not log.community_id:
-                log.community = log.plan.community
-            log.save()
-            messages.success(request, "Workout log saved.")
-            return redirect("progress:logs")
-
-        response = self.render_to_response(self.get_context_data(log_form=form))
-        response.status_code = 400
-        return response
-
-    def _build_insights(self, logs):
-        now = timezone.now()
-        recent_7d = logs.filter(completed_at__gte=now - timedelta(days=7))
-        recent_14d_rpe = logs.filter(
-            completed_at__gte=now - timedelta(days=14),
-            perceived_exertion__isnull=False,
-        )
-        recent_30d_communities = logs.filter(
-            completed_at__gte=now - timedelta(days=30),
-            community__isnull=False,
-        )
-        avg_rpe_14d = recent_14d_rpe.aggregate(avg=Avg("perceived_exertion"))["avg"]
-
-        return {
-            "total_logs": logs.count(),
-            "recent_logs_7d": recent_7d.count(),
-            "avg_rpe_14d": avg_rpe_14d,
-            "active_communities_30d": recent_30d_communities.values(
-                "community_id"
-            ).distinct().count(),
-        }
+        return queryset
 
     def _window_days_filter(self):
         value = self.request.GET.get("days", "").strip().lower()
@@ -186,3 +132,107 @@ class WorkoutLogListCreateView(LoginRequiredMixin, ListView):
             "plans": plans,
             "communities": communities,
         }
+
+
+class WorkoutLogListCreateView(LoginRequiredMixin, ProgressFiltersMixin, ListView):
+    model = WorkoutLog
+    template_name = "progress/logs.html"
+    context_object_name = "logs"
+
+    def get_queryset(self):
+        return self._filtered_logs_queryset().order_by("-completed_at")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["log_form"] = kwargs.get("log_form") or WorkoutLogForm(user=self.request.user)
+        logs_queryset = context["logs"]
+        context["insights"] = self._build_insights(logs_queryset)
+        context["rpe_trend"] = self._build_rpe_trend(logs_queryset)
+        context["filter_options"] = self._filter_options()
+        context["selected_filters"] = {
+            "days": self.request.GET.get("days", "all").strip() or "all",
+            "plan": self.request.GET.get("plan", "").strip(),
+            "community": self.request.GET.get("community", "").strip(),
+            "trend_days": str(self._trend_days_filter()),
+        }
+        context["active_querystring"] = self.request.GET.urlencode()
+        return context
+
+    def post(self, request: HttpRequest) -> HttpResponse:
+        form = WorkoutLogForm(request.POST, user=request.user)
+        if form.is_valid():
+            log = form.save(commit=False)
+            log.performed_by = request.user
+            if log.plan and log.plan.community_id and not log.community_id:
+                log.community = log.plan.community
+            log.save()
+            messages.success(request, "Workout log saved.")
+            return redirect("progress:logs")
+
+        response = self.render_to_response(self.get_context_data(log_form=form))
+        response.status_code = 400
+        return response
+
+    def _build_insights(self, logs):
+        now = timezone.now()
+        recent_7d = logs.filter(completed_at__gte=now - timedelta(days=7))
+        recent_14d_rpe = logs.filter(
+            completed_at__gte=now - timedelta(days=14),
+            perceived_exertion__isnull=False,
+        )
+        recent_30d_communities = logs.filter(
+            completed_at__gte=now - timedelta(days=30),
+            community__isnull=False,
+        )
+        avg_rpe_14d = recent_14d_rpe.aggregate(avg=Avg("perceived_exertion"))["avg"]
+
+        return {
+            "total_logs": logs.count(),
+            "recent_logs_7d": recent_7d.count(),
+            "avg_rpe_14d": avg_rpe_14d,
+            "active_communities_30d": recent_30d_communities.values(
+                "community_id"
+            ).distinct().count(),
+        }
+
+class WorkoutLogExportCsvView(LoginRequiredMixin, ProgressFiltersMixin, View):
+    def get(self, request: HttpRequest) -> HttpResponse:
+        logs = self._filtered_logs_queryset().order_by("-completed_at")
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="progress-logs.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(["completed_at", "plan", "community", "perceived_exertion", "notes"])
+        for log in logs:
+            writer.writerow(
+                [
+                    timezone.localtime(log.completed_at).strftime("%Y-%m-%d %H:%M:%S"),
+                    log.plan.name if log.plan else "",
+                    log.community.name if log.community else "",
+                    log.perceived_exertion if log.perceived_exertion is not None else "",
+                    log.notes,
+                ]
+            )
+        return response
+
+
+class WorkoutTrendExportCsvView(LoginRequiredMixin, ProgressFiltersMixin, View):
+    def get(self, request: HttpRequest) -> HttpResponse:
+        logs = self._filtered_logs_queryset()
+        trend = self._build_rpe_trend(logs)
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="progress-trend.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(["day", "avg_rpe", "entry_count", "height_pct", "window_days"])
+        for point in trend["points"]:
+            writer.writerow(
+                [
+                    point["day"],
+                    point["avg_rpe"],
+                    point["entry_count"],
+                    point["height_pct"],
+                    trend["window_days"],
+                ]
+            )
+        return response

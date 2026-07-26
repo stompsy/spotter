@@ -1,4 +1,6 @@
+import csv
 from datetime import timedelta
+from io import StringIO
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -483,3 +485,87 @@ def test_progress_rpe_trend_points_include_chart_heights(client):
     content = response.content.decode()
     assert "height: 20%" in content
     assert "height: 100%" in content
+
+
+@pytest.mark.django_db
+def test_progress_logs_export_csv_respects_active_filters(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="export_logs_user",
+        email="export_logs_user@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Export Logs Plan",
+        slug="export-logs-plan",
+        created_by=user,
+        is_published=True,
+    )
+
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=8,
+        notes="Recent export log",
+        completed_at=timezone.now() - timedelta(days=2),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=5,
+        notes="Older export log",
+        completed_at=timezone.now() - timedelta(days=20),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:logs_export_csv"), {"days": "7"})
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/csv")
+    assert "attachment;" in response["Content-Disposition"]
+    body = response.content.decode()
+    assert "Recent export log" in body
+    assert "Older export log" not in body
+
+
+@pytest.mark.django_db
+def test_progress_trend_export_csv_uses_trend_window(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="export_trend_user",
+        email="export_trend_user@example.com",
+        password="pw",
+    )
+    plan = WorkoutPlan.objects.create(
+        name="Export Trend Plan",
+        slug="export-trend-plan",
+        created_by=user,
+        is_published=True,
+    )
+    now = timezone.now()
+
+    recent_log = WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=7,
+        completed_at=now - timedelta(days=1),
+    )
+    WorkoutLog.objects.create(
+        plan=plan,
+        performed_by=user,
+        perceived_exertion=4,
+        completed_at=now - timedelta(days=12),
+    )
+
+    client.force_login(user)
+    response = client.get(reverse("progress:trend_export_csv"), {"trend_days": "7"})
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/csv")
+    rows = list(csv.DictReader(StringIO(response.content.decode())))
+    assert len(rows) == 1
+    assert rows[0]["day"] == str(recent_log.completed_at.date())
+    assert float(rows[0]["avg_rpe"]) == pytest.approx(7.0)
+    assert int(rows[0]["entry_count"]) == 1
+    assert int(rows[0]["height_pct"]) == 70
+    assert int(rows[0]["window_days"]) == 7

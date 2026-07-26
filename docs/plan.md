@@ -33,6 +33,8 @@ The original plan lived in session memory and was not visible in the workspace t
 - Acceptance tests now cover trend aggregation output and empty-state behavior.
 - Chart-style trend rendering is implemented with normalized bar heights for daily RPE points.
 - Compare-period indicators are implemented for current vs previous trend windows.
+- CSV export views are implemented for active filtered logs and trend points.
+- Acceptance tests now cover logs export filters and trend export window behavior.
 
 ### In progress quality baseline
 - Focused tests exist for community moderation and notifications inbox/read actions.
@@ -47,7 +49,7 @@ The original plan lived in session memory and was not visible in the workspace t
 ## Remaining high-value work
 
 ### 1. Progress depth iteration
-- Add export-ready views (CSV download) for filtered logs and trend points.
+- Add compare-period percentages and user-facing legends for clearer trend interpretation.
 
 ## Suggested next implementation step
-Implement CSV export for the active filtered logs and trend data views.
+Implement compare-period percentage deltas and clearer trend legend copy in the progress trend section.
