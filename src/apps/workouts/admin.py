@@ -3,6 +3,8 @@ from django.contrib import admin
 from .models import (
     Exercise,
     ExerciseCandidate,
+    ExerciseExtractionPage,
+    ExerciseExtractionRun,
     ExerciseSource,
     WorkoutPlan,
     WorkoutPlanAssignment,
@@ -49,3 +51,17 @@ class ExerciseCandidateAdmin(admin.ModelAdmin):
     list_display = ("normalized_name", "raw_name", "source", "status", "confidence", "updated_at")
     list_filter = ("status", "source__source_type")
     search_fields = ("normalized_name", "raw_name", "source__name")
+
+
+@admin.register(ExerciseExtractionRun)
+class ExerciseExtractionRunAdmin(admin.ModelAdmin):
+    list_display = ("id", "source", "status", "started_at", "finished_at")
+    list_filter = ("status", "source__source_type")
+    search_fields = ("source__name", "source__location")
+
+
+@admin.register(ExerciseExtractionPage)
+class ExerciseExtractionPageAdmin(admin.ModelAdmin):
+    list_display = ("run", "page_number", "extraction_method", "status", "char_count")
+    list_filter = ("extraction_method", "status")
+    search_fields = ("run__source__name",)

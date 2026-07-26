@@ -6,8 +6,13 @@ from django.core.management import call_command
 from apps.workouts.models import (
     CurationStatus,
     ExerciseCandidate,
+    ExerciseExtractionPage,
+    ExerciseExtractionRun,
     ExerciseSource,
     ExerciseSourceType,
+    ExtractionMethod,
+    ExtractionPageStatus,
+    ExtractionRunStatus,
 )
 
 
@@ -55,6 +60,17 @@ def test_ingest_exercise_candidates_creates_source_and_draft_candidates(tmp_path
         == 5
     )
 
+    extraction_run = ExerciseExtractionRun.objects.get(source=source)
+    assert extraction_run.status == ExtractionRunStatus.COMPLETED
+    assert extraction_run.summary["method"] == ExtractionMethod.TEXT_FILE
+    assert extraction_run.summary["pages_total"] == 1
+    assert extraction_run.summary["pages_with_text"] == 1
+
+    page = ExerciseExtractionPage.objects.get(run=extraction_run, page_number=1)
+    assert page.extraction_method == ExtractionMethod.TEXT_FILE
+    assert page.status == ExtractionPageStatus.EXTRACTED
+    assert page.char_count > 0
+
 
 @pytest.mark.django_db
 def test_ingest_exercise_candidates_is_idempotent_for_normalized_names(tmp_path):
@@ -81,3 +97,37 @@ def test_ingest_exercise_candidates_is_idempotent_for_normalized_names(tmp_path)
         "forward lunge",
         "side lunge",
     }
+
+
+@pytest.mark.django_db
+def test_ingest_exercise_candidates_records_pdf_page_logging_with_routing_stub(
+    tmp_path,
+    monkeypatch,
+):
+    from apps.workouts.management.commands import ingest_exercise_candidates as module
+
+    source_file = tmp_path / "mock.pdf"
+    source_file.write_bytes(b"%PDF-1.4\n")
+
+    def fake_extract_text_pages(_path):
+        return ["Forward Lunges", "", "Switch Lunges"], ExtractionMethod.PYPDF, None
+
+    monkeypatch.setattr(module, "extract_text_pages", fake_extract_text_pages)
+
+    call_command("ingest_exercise_candidates", source_file=str(source_file))
+
+    source = ExerciseSource.objects.get(location=str(source_file))
+    extraction_run = ExerciseExtractionRun.objects.get(source=source)
+    assert extraction_run.status == ExtractionRunStatus.COMPLETED_WITH_ERRORS
+    assert extraction_run.summary["method"] == ExtractionMethod.PYPDF
+    assert extraction_run.summary["pages_total"] == 3
+    assert extraction_run.summary["pages_with_text"] == 2
+    assert extraction_run.summary["page_errors"] == 1
+
+    pages = list(
+        ExerciseExtractionPage.objects.filter(run=extraction_run).order_by("page_number")
+    )
+    assert [page.page_number for page in pages] == [1, 2, 3]
+    assert pages[0].status == ExtractionPageStatus.EXTRACTED
+    assert pages[1].status == ExtractionPageStatus.PARTIAL
+    assert pages[2].status == ExtractionPageStatus.EXTRACTED

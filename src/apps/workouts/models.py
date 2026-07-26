@@ -22,6 +22,25 @@ class CurationStatus(models.TextChoices):
     DEPRECATED = "deprecated", "Deprecated"
 
 
+class ExtractionRunStatus(models.TextChoices):
+    RUNNING = "running", "Running"
+    COMPLETED = "completed", "Completed"
+    COMPLETED_WITH_ERRORS = "completed_with_errors", "Completed with errors"
+    FAILED = "failed", "Failed"
+
+
+class ExtractionMethod(models.TextChoices):
+    TEXT_FILE = "text_file", "Text file"
+    PYPDF = "pypdf", "PyPDF"
+    UNSUPPORTED = "unsupported", "Unsupported"
+
+
+class ExtractionPageStatus(models.TextChoices):
+    EXTRACTED = "extracted", "Extracted"
+    PARTIAL = "partial", "Partial"
+    FAILED = "failed", "Failed"
+
+
 class Exercise(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -82,6 +101,62 @@ class ExerciseCandidate(models.Model):
 
     def __str__(self) -> str:
         return self.normalized_name
+
+
+class ExerciseExtractionRun(models.Model):
+    source = models.ForeignKey(
+        ExerciseSource,
+        on_delete=models.CASCADE,
+        related_name="extraction_runs",
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=ExtractionRunStatus.choices,
+        default=ExtractionRunStatus.RUNNING,
+    )
+    summary = models.JSONField(default=dict, blank=True)
+    started_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-started_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"Extraction run for {self.source.name}"
+
+
+class ExerciseExtractionPage(models.Model):
+    run = models.ForeignKey(
+        ExerciseExtractionRun,
+        on_delete=models.CASCADE,
+        related_name="pages",
+    )
+    page_number = models.PositiveIntegerField()
+    extraction_method = models.CharField(
+        max_length=32,
+        choices=ExtractionMethod.choices,
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=ExtractionPageStatus.choices,
+    )
+    raw_text = models.TextField(blank=True)
+    cleaned_text = models.TextField(blank=True)
+    char_count = models.PositiveIntegerField(default=0)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["page_number", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run", "page_number"],
+                name="unique_page_number_per_extraction_run",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.run_id} page {self.page_number}"
 
 
 class WorkoutPlan(models.Model):
