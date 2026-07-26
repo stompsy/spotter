@@ -48,18 +48,23 @@ This is the visible implementation roadmap and status tracker in the workspace.
 
 ## Phased roadmap
 
+Progress notation used below:
+- [DONE] = delivered and merged
+- [IN PROGRESS] = partially delivered in merged slices
+- [PENDING] = not yet started
+
 ### Phase 0 - Product Guardrails and Data Governance
-1. Define content and licensing policy first so implementation is legally safe and maintainable.
-2. Create content policy and admin checklist:
+1. [DONE] ~~Define content and licensing policy first so implementation is legally safe and maintainable.~~
+2. [DONE] ~~Create content policy and admin checklist:~~
 - accepted source types
 - prohibited content ingestion (verbatim copyrighted text/images)
 - attribution requirements
 - media rights requirements
-3. Add exercise guidance disclaimer pattern (informational, not medical advice).
+3. [DONE] ~~Add exercise guidance disclaimer pattern (informational, not medical advice).~~
 
 ### Phase 1 - Domain Model Expansion (Foundational)
-1. Extend exercise taxonomy beyond current category enum.
-2. Add normalized exercise metadata fields:
+1. [PENDING] Extend exercise taxonomy beyond current category enum.
+2. [PENDING] Add normalized exercise metadata fields:
 - movement type
 - body areas
 - difficulty level
@@ -67,82 +72,82 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - contraindications and safety notes
 - setup, execution steps, common mistakes, coaching cues
 - default prescription ranges by goal
-3. Add media model support (uploads, external URL, license metadata).
-4. Add plan-type and duration semantics:
+3. [PENDING] Add media model support (uploads, external URL, license metadata).
+4. [PENDING] Add plan-type and duration semantics:
 - single-session, challenge, program
 - short, medium, long sessions
 - challenge duration and focus area
-5. Add challenge-day structure model.
-6. Add optional phased periodization model.
+5. [PENDING] Add challenge-day structure model.
+6. [PENDING] Add optional phased periodization model.
 
 ### Phase 2 - Exercise Card Authoring and Discovery UX
-1. Upgrade exercise management UI for rich card creation/editing and moderation state.
-2. Render exercise cards with image/media, body-area badges, safe-form instructions, common prescriptions, and caution notes.
-3. Add search/filter/sort by movement type, body area, equipment, level, and duration fit.
-4. Add copy-safe challenge presets (Abs 30-day, Lunge 30-day first).
+1. [PENDING] Upgrade exercise management UI for rich card creation/editing and moderation state.
+2. [PENDING] Render exercise cards with image/media, body-area badges, safe-form instructions, common prescriptions, and caution notes.
+3. [PENDING] Add search/filter/sort by movement type, body area, equipment, level, and duration fit.
+4. [PENDING] Add copy-safe challenge presets (Abs 30-day, Lunge 30-day first).
 
 ### Phase 3 - Plan Builder and Challenge Templates
-1. Build guided plan composer with reusable cards and day templates.
-2. Support short/medium/long templates with suggestion logic.
-3. Add challenge wizard (focus area, duration, progression, checkpoints).
-4. Support split completion behavior for daily targets.
-5. Add validation rules for balance, recovery spacing, and warm-up/cooldown coverage.
+1. [PENDING] Build guided plan composer with reusable cards and day templates.
+2. [PENDING] Support short/medium/long templates with suggestion logic.
+3. [PENDING] Add challenge wizard (focus area, duration, progression, checkpoints).
+4. [PENDING] Support split completion behavior for daily targets.
+5. [PENDING] Add validation rules for balance, recovery spacing, and warm-up/cooldown coverage.
 
 ### Phase 4 - Calendar System (Full View Set in First Release)
-1. Introduce schedule layer from assignments and challenge days.
-2. Build main user calendar views:
+1. [PENDING] Introduce schedule layer from assignments and challenge days.
+2. [PENDING] Build main user calendar views:
 - daily
 - rolling 3-day
 - weekly
 - monthly
 - yearly
-3. Add day states: planned, partial, complete, missed, rest.
-4. Link calendar cells to workouts, logs, notes, and challenge progress.
-5. Add coach/community overlays where permissions allow.
+3. [PENDING] Add day states: planned, partial, complete, missed, rest.
+4. [PENDING] Link calendar cells to workouts, logs, notes, and challenge progress.
+5. [PENDING] Add coach/community overlays where permissions allow.
 
 ### Phase 5 - Progress Analytics and Insight Safety
-1. Add challenge KPIs:
+1. [PENDING] Add challenge KPIs:
 - adherence
 - streaks
 - baseline vs current
 - checkpoint deltas and percentages
-2. Add body-area and movement-type volume summaries.
-3. Add load-safety alerts for abrupt spikes/repeated high-RPE streaks.
-4. Keep insights educational and non-diagnostic.
+2. [PENDING] Add body-area and movement-type volume summaries.
+3. [PENDING] Add load-safety alerts for abrupt spikes/repeated high-RPE streaks.
+4. [PENDING] Keep insights educational and non-diagnostic.
 
 ### Phase 6 - Internet Exercise Intelligence Pipeline and Curation
-1. Build source registry model for provenance and approval.
-2. Define source tiers:
+1. [DONE] ~~Build source registry model for provenance and approval.~~
+2. [DONE] ~~Define source tiers:~~
 - Tier A structured exercise datasets
 - Tier B media sources with asset-level licensing
 - Tier C safety overlays
-3. Add ingestion adapters:
+3. [IN PROGRESS] Add ingestion adapters:
 - dataset adapter
 - media adapter
 - manual editor adapter
-4. Add curation workflow states:
+4. [DONE] ~~Add curation workflow states:~~
 - draft
 - needs_review
 - approved
 - published
 - deprecated
-5. Add content quality checks:
+5. [IN PROGRESS] Add content quality checks:
 - duplicate detection
 - instruction completeness score
 - safety completeness score
-6. Build docs import tooling (start with Lunges.txt).
-7. Add implementation-time PDF extraction toolkit:
+6. [IN PROGRESS] Build docs import tooling (start with Lunges.txt).
+7. [IN PROGRESS] Add implementation-time PDF extraction toolkit:
 - pypdf first pass
 - pdfplumber fallback
 - OCR fallback (pypdfium2 plus pytesseract)
 - normalization and candidate extraction
 - low-confidence review queue
-8. Build first curated bundles:
+8. [PENDING] Build first curated bundles:
 - warm-up
 - calisthenics
 - cooldown
 - 30-day abs and 30-day lunge challenge seeds
-9. Implement dedicated PDF extraction and internet-lookup subsystem:
+9. [IN PROGRESS] Implement dedicated PDF extraction and internet-lookup subsystem:
 - parser routing
 - candidate mining and confidence scoring
 - curation gates and copy-safety checks
@@ -150,17 +155,17 @@ This is the visible implementation roadmap and status tracker in the workspace.
 - verification targets
 
 ### Phase 7 - Permissions, Safety, and Operations
-1. Add role-aware publication permissions.
-2. Add moderation queues for flagged media and unsafe edits.
-3. Add audit events for publication and major changes.
-4. Add background jobs for schedule materialization and reminder fan-out.
+1. [IN PROGRESS] Add role-aware publication permissions.
+2. [PENDING] Add moderation queues for flagged media and unsafe edits.
+3. [IN PROGRESS] Add audit events for publication and major changes.
+4. [PENDING] Add background jobs for schedule materialization and reminder fan-out.
 
 ### Phase 8 - Delivery Strategy (Incremental)
-1. Slice A: exercise taxonomy plus rich card UI plus filters.
-2. Slice B: challenge models plus Abs/Lunge presets.
-3. Slice C: calendar daily/3-day/weekly/monthly/yearly.
-4. Slice D: advanced analytics plus safeguards plus curation pipeline.
-5. Keep migrations backward-compatible and feature-flag new UI as needed.
+1. [PENDING] Slice A: exercise taxonomy plus rich card UI plus filters.
+2. [PENDING] Slice B: challenge models plus Abs/Lunge presets.
+3. [PENDING] Slice C: calendar daily/3-day/weekly/monthly/yearly.
+4. [PENDING] Slice D: advanced analytics plus safeguards plus curation pipeline.
+5. [IN PROGRESS] Keep migrations backward-compatible and feature-flag new UI as needed.
 
 ## Appendix A - PDF Exercise Extraction And Internet Lookup (Phase 6 detailed design)
 
