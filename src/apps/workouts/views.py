@@ -303,6 +303,7 @@ class WorkoutPlanListView(LoginRequiredMixin, ListView):
             messages.success(request, "Workout plan created.")
             return redirect("workouts:detail", slug=plan.slug)
 
+        self.object_list = self.get_queryset()
         response = self.render_to_response(self.get_context_data(plan_form=form))
         response.status_code = 400
         return response

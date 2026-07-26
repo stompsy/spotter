@@ -90,6 +90,18 @@ class ExtractionPageStatus(models.TextChoices):
     FAILED = "failed", "Failed"
 
 
+class WorkoutPlanType(models.TextChoices):
+    SINGLE_SESSION = "single_session", "Single session"
+    CHALLENGE = "challenge", "Challenge"
+    PROGRAM = "program", "Program"
+
+
+class WorkoutPlanDurationBand(models.TextChoices):
+    SHORT = "short", "Short"
+    MEDIUM = "medium", "Medium"
+    LONG = "long", "Long"
+
+
 class Exercise(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -407,6 +419,18 @@ class WorkoutPlan(models.Model):
         blank=True,
         related_name="workout_plans",
     )
+    plan_type = models.CharField(
+        max_length=32,
+        choices=WorkoutPlanType.choices,
+        default=WorkoutPlanType.SINGLE_SESSION,
+    )
+    duration_band = models.CharField(
+        max_length=16,
+        choices=WorkoutPlanDurationBand.choices,
+        default=WorkoutPlanDurationBand.SHORT,
+    )
+    challenge_duration_days = models.PositiveSmallIntegerField(null=True, blank=True)
+    challenge_focus_area = models.CharField(max_length=120, blank=True)
     is_template = models.BooleanField(default=False)
     is_published = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
