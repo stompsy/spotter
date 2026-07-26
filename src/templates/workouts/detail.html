@@ -8,6 +8,15 @@
       <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Plan details</p>
       <h2 class="mt-2 font-display text-4xl font-bold uppercase tracking-wide text-white">{{ plan.name }}</h2>
       <p class="mt-3 text-sm text-zinc-300">{{ plan.description|default:"No description yet." }}</p>
+      <p class="mt-2 text-xs uppercase tracking-[0.15em] text-zinc-400">
+        {{ plan.get_plan_type_display }} | {{ plan.get_duration_band_display }}
+        {% if plan.plan_type == "challenge" and plan.challenge_duration_days %}
+          | {{ plan.challenge_duration_days }} days
+        {% endif %}
+        {% if plan.plan_type == "challenge" and plan.challenge_focus_area %}
+          | Focus: {{ plan.challenge_focus_area }}
+        {% endif %}
+      </p>
       <p class="mt-3 text-xs uppercase tracking-[0.15em] text-zinc-400">
         {% if plan.community %}Community: {{ plan.community.name }}{% else %}Personal plan{% endif %}
       </p>

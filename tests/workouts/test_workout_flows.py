@@ -50,6 +50,65 @@ def test_authenticated_user_can_create_workout_plan(client):
 
 
 @pytest.mark.django_db
+def test_user_can_create_challenge_workout_plan_with_semantics(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="challenge_plan_owner",
+        email="challenge_plan_owner@example.com",
+        password="pw",
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:list"),
+        {
+            "name": "Lunge Ladder",
+            "description": "Challenge progression",
+            "plan_type": "challenge",
+            "duration_band": "medium",
+            "challenge_duration_days": "30",
+            "challenge_focus_area": "Lower body",
+            "is_template": "on",
+        },
+    )
+
+    assert response.status_code == 302
+    plan = WorkoutPlan.objects.get(name="Lunge Ladder")
+    assert plan.plan_type == "challenge"
+    assert plan.duration_band == "medium"
+    assert plan.challenge_duration_days == 30
+    assert plan.challenge_focus_area == "Lower body"
+
+
+@pytest.mark.django_db
+def test_challenge_plan_requires_duration_and_focus(client):
+    user_model = get_user_model()
+    user = user_model.objects.create_user(
+        username="challenge_validation_owner",
+        email="challenge_validation_owner@example.com",
+        password="pw",
+    )
+
+    client.force_login(user)
+    response = client.post(
+        reverse("workouts:list"),
+        {
+            "name": "Broken Challenge",
+            "description": "Missing challenge fields",
+            "plan_type": "challenge",
+            "duration_band": "short",
+            "challenge_duration_days": "",
+            "challenge_focus_area": "",
+        },
+    )
+
+    assert response.status_code == 400
+    content = response.content.decode("utf-8")
+    assert "Challenge duration is required for challenge plans." in content
+    assert "Challenge focus area is required for challenge plans." in content
+
+
+@pytest.mark.django_db
 def test_plan_creator_can_add_item(client):
     user_model = get_user_model()
     user = user_model.objects.create_user(

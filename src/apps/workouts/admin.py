@@ -122,8 +122,18 @@ class WorkoutPlanItemInline(admin.TabularInline):
 
 @admin.register(WorkoutPlan)
 class WorkoutPlanAdmin(admin.ModelAdmin):
-    list_display = ("name", "community", "created_by", "is_template", "is_published", "created_at")
-    list_filter = ("is_template", "is_published")
+    list_display = (
+        "name",
+        "plan_type",
+        "duration_band",
+        "challenge_duration_days",
+        "community",
+        "created_by",
+        "is_template",
+        "is_published",
+        "created_at",
+    )
+    list_filter = ("plan_type", "duration_band", "is_template", "is_published")
     search_fields = ("name", "slug", "community__name", "created_by__username")
     inlines = [WorkoutPlanItemInline]
 

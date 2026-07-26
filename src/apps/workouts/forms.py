@@ -61,12 +61,26 @@ class ExerciseForm(forms.ModelForm):
 class WorkoutPlanForm(forms.ModelForm):
     class Meta:
         model = WorkoutPlan
-        fields = ["name", "description", "community", "is_template", "is_published"]
+        fields = [
+            "name",
+            "description",
+            "community",
+            "plan_type",
+            "duration_band",
+            "challenge_duration_days",
+            "challenge_focus_area",
+            "is_template",
+            "is_published",
+        ]
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["community"].required = False
         self.fields["community"].queryset = self._community_queryset(user)
+        self.fields["plan_type"].required = False
+        self.fields["duration_band"].required = False
+        self.fields["challenge_duration_days"].required = False
+        self.fields["challenge_focus_area"].required = False
 
     @staticmethod
     def _community_queryset(user) -> QuerySet[Community]:
@@ -77,6 +91,38 @@ class WorkoutPlanForm(forms.ModelForm):
             memberships__status=MembershipStatus.ACTIVE,
             is_archived=False,
         ).distinct()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        plan_type = cleaned_data.get("plan_type")
+        if not plan_type:
+            plan_type = WorkoutPlan._meta.get_field("plan_type").default
+            cleaned_data["plan_type"] = plan_type
+
+        duration_band = cleaned_data.get("duration_band")
+        if not duration_band:
+            duration_band = WorkoutPlan._meta.get_field("duration_band").default
+            cleaned_data["duration_band"] = duration_band
+
+        challenge_duration_days = cleaned_data.get("challenge_duration_days")
+        challenge_focus_area = (cleaned_data.get("challenge_focus_area") or "").strip()
+
+        if plan_type == "challenge":
+            if not challenge_duration_days:
+                self.add_error(
+                    "challenge_duration_days",
+                    "Challenge duration is required for challenge plans.",
+                )
+            if not challenge_focus_area:
+                self.add_error(
+                    "challenge_focus_area",
+                    "Challenge focus area is required for challenge plans.",
+                )
+        else:
+            cleaned_data["challenge_duration_days"] = None
+            cleaned_data["challenge_focus_area"] = ""
+
+        return cleaned_data
 
 
 class WorkoutPlanItemForm(forms.ModelForm):
