@@ -18,6 +18,8 @@ from apps.workouts.models import (
     ExtractionMethod,
     ExtractionPageStatus,
     ExtractionRunStatus,
+    PlanSignalCandidate,
+    SourceReference,
 )
 
 
@@ -81,6 +83,56 @@ def test_ingest_exercise_candidates_creates_source_and_draft_candidates(tmp_path
     assert page.status == ExtractionPageStatus.EXTRACTED
     assert page.char_count > 0
 
+    references = SourceReference.objects.filter(source=source)
+    assert references.count() == 5
+    assert references.filter(reference_url="").count() == 5
+    assert references.filter(title=source.name).count() == 5
+    assert references.filter(metadata__captured_by="ingestion_command").count() == 5
+    assert extraction_run.summary["source_reference_count"] == 5
+
+
+@pytest.mark.django_db
+def test_ingest_exercise_candidates_persists_plan_signal_candidates(tmp_path):
+    source_file = tmp_path / "PlanSignals.txt"
+    source_file.write_text(
+        "\n".join(
+            [
+                "Day 1",
+                "Week 2",
+                "Phase A",
+                "3x10 Forward Lunges",
+                "45 seconds plank hold",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    call_command("ingest_exercise_candidates", source_file=str(source_file))
+
+    source = ExerciseSource.objects.get(location=str(source_file))
+    extraction_run = ExerciseExtractionRun.objects.get(source=source)
+    signals = PlanSignalCandidate.objects.filter(run=extraction_run)
+
+    assert signals.count() == 5
+    assert signals.filter(signal_type="challenge_day", signal_value="Day 1").exists()
+    assert signals.filter(signal_type="week_marker", signal_value="Week 2").exists()
+    assert signals.filter(signal_type="phase_marker", signal_value="Phase A").exists()
+    assert extraction_run.summary["plan_signal_count"] == 5
+
+
+@pytest.mark.django_db
+def test_ingest_exercise_candidates_bounds_long_candidate_names(tmp_path):
+    very_long_name = "Lunge " + ("x" * 260)
+    source_file = tmp_path / "LongCandidates.txt"
+    source_file.write_text(very_long_name, encoding="utf-8")
+
+    call_command("ingest_exercise_candidates", source_file=str(source_file))
+
+    source = ExerciseSource.objects.get(location=str(source_file))
+    candidate = ExerciseCandidate.objects.get(source=source)
+    assert len(candidate.raw_name) <= 200
+    assert len(candidate.normalized_name) <= 200
+
 
 @pytest.mark.django_db
 def test_ingest_exercise_candidates_is_idempotent_for_normalized_names(tmp_path):
@@ -103,6 +155,7 @@ def test_ingest_exercise_candidates_is_idempotent_for_normalized_names(tmp_path)
     source = ExerciseSource.objects.get(location=str(source_file))
     candidates = ExerciseCandidate.objects.filter(source=source)
     assert candidates.count() == 2
+    assert SourceReference.objects.filter(source=source).count() == 2
     assert set(candidates.values_list("normalized_name", flat=True)) == {
         "forward lunge",
         "side lunge",
@@ -119,25 +172,52 @@ def test_ingest_exercise_candidates_records_pdf_page_logging_with_routing_stub(
     source_file = tmp_path / "mock.pdf"
     source_file.write_bytes(b"%PDF-1.4\n")
 
-    def fake_extract_text_pages(_path):
-        return ["Forward Lunges", "", "Switch Lunges"], ExtractionMethod.PYPDF, None
+    def fake_extract_document_pages(_path):
+        return [
+            {
+                "page_number": 1,
+                "raw_text": "Forward Lunges",
+                "extraction_method": ExtractionMethod.PYPDF,
+                "metadata": {},
+            },
+            {
+                "page_number": 2,
+                "raw_text": "",
+                "extraction_method": ExtractionMethod.PDFPLUMBER,
+                "metadata": {},
+            },
+            {
+                "page_number": 3,
+                "raw_text": "Switch Lunges",
+                "extraction_method": ExtractionMethod.OCR_TESSERACT,
+                "metadata": {},
+            },
+        ], "pdf_parser_routing", None
 
-    monkeypatch.setattr(module, "extract_text_pages", fake_extract_text_pages)
+    monkeypatch.setattr(module, "extract_document_pages", fake_extract_document_pages)
 
     call_command("ingest_exercise_candidates", source_file=str(source_file))
 
     source = ExerciseSource.objects.get(location=str(source_file))
     extraction_run = ExerciseExtractionRun.objects.get(source=source)
     assert extraction_run.status == ExtractionRunStatus.COMPLETED_WITH_ERRORS
-    assert extraction_run.summary["method"] == ExtractionMethod.PYPDF
+    assert extraction_run.summary["method"] == "pdf_parser_routing"
     assert extraction_run.summary["pages_total"] == 3
     assert extraction_run.summary["pages_with_text"] == 2
     assert extraction_run.summary["page_errors"] == 1
+    assert extraction_run.summary["page_methods"] == {
+        ExtractionMethod.PDFPLUMBER: 1,
+        ExtractionMethod.PYPDF: 1,
+        ExtractionMethod.OCR_TESSERACT: 1,
+    }
 
     pages = list(
         ExerciseExtractionPage.objects.filter(run=extraction_run).order_by("page_number")
     )
     assert [page.page_number for page in pages] == [1, 2, 3]
+    assert pages[0].extraction_method == ExtractionMethod.PYPDF
+    assert pages[1].extraction_method == ExtractionMethod.PDFPLUMBER
+    assert pages[2].extraction_method == ExtractionMethod.OCR_TESSERACT
     assert pages[0].status == ExtractionPageStatus.EXTRACTED
     assert pages[1].status == ExtractionPageStatus.PARTIAL
     assert pages[2].status == ExtractionPageStatus.EXTRACTED
@@ -496,3 +576,174 @@ def test_exercise_candidate_review_action_requires_reviewer_permission(client):
     candidate.refresh_from_db()
     assert candidate.status == CurationStatus.DRAFT
     assert ExerciseCandidateDecision.objects.filter(candidate=candidate).count() == 0
+
+
+@pytest.mark.django_db
+def test_ingest_exercise_candidates_dataset_adapter_csv(tmp_path):
+    source_file = tmp_path / "bundle.csv"
+    source_file.write_text(
+        "name\nForward Lunges\nPlank\n",
+        encoding="utf-8",
+    )
+
+    call_command(
+        "ingest_exercise_candidates",
+        source_file=str(source_file),
+        adapter="dataset",
+    )
+
+    source = ExerciseSource.objects.get(location=str(source_file))
+    assert source.source_type == ExerciseSourceType.DATASET
+    normalized = set(
+        ExerciseCandidate.objects.filter(source=source).values_list(
+            "normalized_name",
+            flat=True,
+        )
+    )
+    assert "forward lunge" in normalized
+    assert "plank" in normalized
+
+
+@pytest.mark.django_db
+def test_ingest_exercise_candidates_manual_adapter_without_source_file():
+    call_command(
+        "ingest_exercise_candidates",
+        adapter="manual",
+        candidate_name=["Reverse Lunges", "Plank"],
+    )
+
+    source = ExerciseSource.objects.get(location="manual://cli")
+    assert source.source_type == ExerciseSourceType.DOCUMENT
+    normalized = set(
+        ExerciseCandidate.objects.filter(source=source).values_list(
+            "normalized_name",
+            flat=True,
+        )
+    )
+    assert normalized == {"reverse lunge", "plank"}
+
+
+@pytest.mark.django_db
+def test_ingest_exercise_candidates_media_adapter_uses_filename_candidate(tmp_path):
+    source_file = tmp_path / "lateral_lunge_demo.mp4"
+    source_file.write_bytes(b"fake-media")
+
+    call_command(
+        "ingest_exercise_candidates",
+        source_file=str(source_file),
+        adapter="media",
+    )
+
+    source = ExerciseSource.objects.get(location=str(source_file))
+    assert source.source_type == ExerciseSourceType.WEB
+    candidates = list(
+        ExerciseCandidate.objects.filter(source=source).values_list(
+            "normalized_name",
+            flat=True,
+        )
+    )
+    assert "lateral lunge demo" in candidates
+
+
+@pytest.mark.django_db
+def test_ingest_exercise_candidates_sets_quality_checks_and_duplicate_metadata(tmp_path):
+    existing_source = ExerciseSource.objects.create(
+        name="existing",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/existing.txt",
+    )
+    ExerciseCandidate.objects.create(
+        source=existing_source,
+        raw_name="Forward Lunges",
+        normalized_name="forward lunge",
+        status=CurationStatus.DRAFT,
+    )
+
+    source_file = tmp_path / "quality.txt"
+    source_file.write_text(
+        "Forward Lunges\n3 sets of 10 reps\nWarm up first and stop if pain appears.",
+        encoding="utf-8",
+    )
+
+    call_command("ingest_exercise_candidates", source_file=str(source_file))
+
+    source = ExerciseSource.objects.get(location=str(source_file))
+    candidate = ExerciseCandidate.objects.get(
+        source=source,
+        normalized_name="forward lunge",
+    )
+    quality_checks = candidate.metadata.get("quality_checks", {})
+    assert quality_checks.get("duplicate_candidates") is True
+    assert quality_checks.get("duplicate_count") == 2
+    assert quality_checks.get("instruction_completeness_score", 0.0) > 0.0
+    assert quality_checks.get("safety_completeness_score", 0.0) > 0.0
+    assert quality_checks.get("needs_low_confidence_review") in {True, False}
+
+
+@pytest.mark.django_db
+def test_ingest_exercise_candidates_marks_low_confidence_candidate_for_review(tmp_path):
+    source_file = tmp_path / "ambiguous.txt"
+    source_file.write_text(
+        "Movement idea\nTry flowing pattern\n",
+        encoding="utf-8",
+    )
+
+    call_command("ingest_exercise_candidates", source_file=str(source_file))
+
+    source = ExerciseSource.objects.get(location=str(source_file))
+    candidate = ExerciseCandidate.objects.get(source=source, normalized_name="movement idea")
+    assert candidate.status == CurationStatus.NEEDS_REVIEW
+    quality_checks = candidate.metadata.get("quality_checks", {})
+    assert quality_checks.get("needs_low_confidence_review") is True
+
+
+@pytest.mark.django_db
+def test_ingest_exercise_candidates_records_parser_warning_telemetry(
+    tmp_path,
+    monkeypatch,
+):
+    from apps.workouts.management.commands import ingest_exercise_candidates as module
+
+    source_file = tmp_path / "mock-warning.pdf"
+    source_file.write_bytes(b"%PDF-1.4\n")
+
+    def fake_extract_document_pages(_path):
+        return [
+            {
+                "page_number": 1,
+                "raw_text": "",
+                "extraction_method": ExtractionMethod.PYPDF,
+                "metadata": {
+                    "warnings": [
+                        {
+                            "stage": ExtractionMethod.PDFPLUMBER,
+                            "message": "pdfplumber is not installed",
+                        },
+                        {
+                            "stage": ExtractionMethod.OCR_TESSERACT,
+                            "message": "pytesseract is not installed",
+                        },
+                    ],
+                    "attempted_methods": [
+                        ExtractionMethod.PYPDF,
+                        ExtractionMethod.PDFPLUMBER,
+                        ExtractionMethod.OCR_TESSERACT,
+                    ],
+                },
+            }
+        ], "pdf_parser_routing", None
+
+    monkeypatch.setattr(module, "extract_document_pages", fake_extract_document_pages)
+
+    call_command("ingest_exercise_candidates", source_file=str(source_file))
+
+    source = ExerciseSource.objects.get(location=str(source_file))
+    extraction_run = ExerciseExtractionRun.objects.get(source=source)
+    assert extraction_run.summary["parser_warning_count"] == 2
+    assert extraction_run.summary["parser_warning_stages"] == {
+        ExtractionMethod.PDFPLUMBER: 1,
+        ExtractionMethod.OCR_TESSERACT: 1,
+    }
+
+    page = ExerciseExtractionPage.objects.get(run=extraction_run, page_number=1)
+    assert page.status == ExtractionPageStatus.FAILED

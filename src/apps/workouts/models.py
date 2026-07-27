@@ -88,6 +88,12 @@ class ExtractionRunStatus(models.TextChoices):
 class ExtractionMethod(models.TextChoices):
     TEXT_FILE = "text_file", "Text file"
     PYPDF = "pypdf", "PyPDF"
+    PDFPLUMBER = "pdfplumber", "pdfplumber"
+    OCR_TESSERACT = "ocr_tesseract", "OCR (pypdfium2 + pytesseract)"
+    CSV_DATASET = "csv_dataset", "CSV dataset"
+    JSON_DATASET = "json_dataset", "JSON dataset"
+    MEDIA_FILE = "media_file", "Media file"
+    MANUAL_ENTRY = "manual_entry", "Manual entry"
     UNSUPPORTED = "unsupported", "Unsupported"
 
 
@@ -420,6 +426,64 @@ class ExerciseExtractionPage(models.Model):
 
     def __str__(self) -> str:
         return f"{self.run_id} page {self.page_number}"
+
+
+class PlanSignalCandidate(models.Model):
+    run = models.ForeignKey(
+        ExerciseExtractionRun,
+        on_delete=models.CASCADE,
+        related_name="plan_signal_candidates",
+    )
+    page = models.ForeignKey(
+        ExerciseExtractionPage,
+        on_delete=models.CASCADE,
+        related_name="plan_signal_candidates",
+        null=True,
+        blank=True,
+    )
+    signal_type = models.CharField(max_length=64)
+    signal_value = models.CharField(max_length=200)
+    confidence = models.DecimalField(max_digits=4, decimal_places=3, default=0.0)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-confidence", "signal_type", "signal_value", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.signal_type}: {self.signal_value}"
+
+
+class SourceReference(models.Model):
+    candidate = models.ForeignKey(
+        ExerciseCandidate,
+        on_delete=models.CASCADE,
+        related_name="source_references",
+    )
+    source = models.ForeignKey(
+        ExerciseSource,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="references",
+    )
+    reference_url = models.URLField(blank=True)
+    title = models.CharField(max_length=255, blank=True)
+    license_name = models.CharField(max_length=200, blank=True)
+    attribution_text = models.CharField(max_length=300, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        candidate_name = self.candidate.normalized_name
+        if self.title:
+            return f"{candidate_name} reference: {self.title}"
+        if self.reference_url:
+            return f"{candidate_name} reference: {self.reference_url}"
+        return f"{candidate_name} reference"
 
 
 class WorkoutPlan(models.Model):

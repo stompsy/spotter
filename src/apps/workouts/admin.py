@@ -10,6 +10,8 @@ from .models import (
     ExerciseExtractionRun,
     ExerciseMedia,
     ExerciseSource,
+    PlanSignalCandidate,
+    SourceReference,
     WorkoutChallengeDay,
     WorkoutPlan,
     WorkoutPlanAssignment,
@@ -276,3 +278,29 @@ class ExerciseExtractionPageAdmin(admin.ModelAdmin):
     list_display = ("run", "page_number", "extraction_method", "status", "char_count")
     list_filter = ("extraction_method", "status")
     search_fields = ("run__source__name",)
+
+
+@admin.register(PlanSignalCandidate)
+class PlanSignalCandidateAdmin(admin.ModelAdmin):
+    list_display = ("signal_type", "signal_value", "confidence", "run", "page")
+    list_filter = ("signal_type",)
+    search_fields = ("signal_type", "signal_value", "run__source__name")
+
+
+@admin.register(SourceReference)
+class SourceReferenceAdmin(admin.ModelAdmin):
+    list_display = (
+        "candidate",
+        "source",
+        "title",
+        "reference_url",
+        "license_name",
+        "created_at",
+    )
+    list_filter = ("source__source_type",)
+    search_fields = (
+        "candidate__normalized_name",
+        "source__name",
+        "title",
+        "reference_url",
+    )

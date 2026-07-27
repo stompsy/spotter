@@ -20,6 +20,7 @@ from apps.workouts.models import (
     ExerciseEquipmentRequirement,
     ExerciseMedia,
     ExerciseMovementType,
+    SourceReference,
     ExerciseSource,
     ExerciseSourceType,
     WorkoutChallengeDay,
@@ -1921,6 +1922,106 @@ def test_review_action_persists_structured_metadata_fields(client):
 
 
 @pytest.mark.django_db
+def test_review_action_creates_source_reference_from_metadata(client):
+    user_model = get_user_model()
+    reviewer = user_model.objects.create_user(
+        username="reviewer_reference",
+        email="reviewer_reference@example.com",
+        password="pw",
+    )
+    permission = Permission.objects.get(codename="review_exercisecandidate")
+    reviewer.user_permissions.add(permission)
+
+    source = ExerciseSource.objects.create(
+        name="Reference source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/reference-source.txt",
+        license_name="CC BY 4.0",
+        is_approved=True,
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Split Squat",
+        normalized_name="split squat",
+        confidence=0.84,
+        status=CurationStatus.NEEDS_REVIEW,
+        metadata={},
+    )
+
+    client.force_login(reviewer)
+    response = client.post(
+        reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id}),
+        {
+            "action": "approve",
+            "source_name": "ACE Reference",
+            "source_url": "https://example.com/exercises/split-squat",
+            "attribution_text": "Adapted from ACE",
+        },
+        follow=False,
+    )
+
+    assert response.status_code == 302
+    reference = SourceReference.objects.get(candidate=candidate)
+    assert reference.source_id == source.id
+    assert reference.reference_url == "https://example.com/exercises/split-squat"
+    assert reference.title == "ACE Reference"
+    assert reference.license_name == "CC BY 4.0"
+    assert reference.attribution_text == "Adapted from ACE"
+    assert reference.metadata["captured_by"] == "review_action"
+
+
+@pytest.mark.django_db
+def test_review_action_source_reference_upsert_is_idempotent(client):
+    user_model = get_user_model()
+    reviewer = user_model.objects.create_user(
+        username="reviewer_reference_upsert",
+        email="reviewer_reference_upsert@example.com",
+        password="pw",
+    )
+    permission = Permission.objects.get(codename="review_exercisecandidate")
+    reviewer.user_permissions.add(permission)
+
+    source = ExerciseSource.objects.create(
+        name="Reference upsert source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/reference-upsert-source.txt",
+        license_name="CC BY 4.0",
+        is_approved=True,
+    )
+    candidate = ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Reverse Lunge",
+        normalized_name="reverse lunge",
+        confidence=0.81,
+        status=CurationStatus.NEEDS_REVIEW,
+        metadata={},
+    )
+
+    client.force_login(reviewer)
+    review_url = reverse("workouts:exercise_candidate_review", kwargs={"candidate_id": candidate.id})
+    payload = {
+        "action": "approve",
+        "source_name": "Original Source Name",
+        "source_url": "https://example.com/exercises/reverse-lunge",
+        "attribution_text": "Original attribution",
+    }
+    response = client.post(review_url, payload, follow=False)
+    assert response.status_code == 302
+
+    payload["source_name"] = "Updated Source Name"
+    payload["attribution_text"] = "Updated attribution"
+    payload["action"] = "deprecate"
+    response = client.post(review_url, payload, follow=False)
+    assert response.status_code == 302
+
+    references = SourceReference.objects.filter(candidate=candidate)
+    assert references.count() == 1
+    reference = references.get()
+    assert reference.title == "Updated Source Name"
+    assert reference.attribution_text == "Updated attribution"
+
+
+@pytest.mark.django_db
 def test_review_action_without_helper_fields_does_not_mutate_metadata(client):
     user_model = get_user_model()
     reviewer = user_model.objects.create_user(username="reviewer_no_meta", password="pw")
@@ -2118,6 +2219,105 @@ def test_exercise_queue_filters_candidates_by_publish_readiness(client):
     content = response.content.decode("utf-8")
     assert "ready candidate" in content
     assert "missing candidate" not in content
+
+
+@pytest.mark.django_db
+def test_exercise_queue_filters_candidates_by_low_confidence_review_queue(client):
+    user_model = get_user_model()
+    reviewer = user_model.objects.create_user(
+        username="low_confidence_queue_reviewer",
+        email="low_confidence_queue_reviewer@example.com",
+        password="pw",
+    )
+    source = ExerciseSource.objects.create(
+        name="Low confidence queue source",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/low-confidence-queue-source.txt",
+    )
+    ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Low confidence candidate",
+        normalized_name="low confidence candidate",
+        confidence=0.45,
+        status=CurationStatus.NEEDS_REVIEW,
+        metadata={"quality_checks": {"needs_low_confidence_review": True}},
+    )
+    ExerciseCandidate.objects.create(
+        source=source,
+        raw_name="Standard confidence candidate",
+        normalized_name="standard confidence candidate",
+        confidence=0.86,
+        status=CurationStatus.NEEDS_REVIEW,
+        metadata={"quality_checks": {"needs_low_confidence_review": False}},
+    )
+
+    client.force_login(reviewer)
+    response = client.get(
+        reverse("workouts:exercises"),
+        {
+            "candidate_status": "needs_review",
+            "review_queue": "low_confidence",
+        },
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "low confidence candidate" in content
+    assert "standard confidence candidate" not in content
+    assert "Low-confidence queue: needs additional reviewer scrutiny." in content
+
+
+@pytest.mark.django_db
+def test_exercise_queue_displays_backlog_snapshot_by_status_and_source(client):
+    user_model = get_user_model()
+    reviewer = user_model.objects.create_user(
+        username="queue_snapshot_reviewer",
+        email="queue_snapshot_reviewer@example.com",
+        password="pw",
+    )
+    source_alpha = ExerciseSource.objects.create(
+        name="Snapshot source alpha",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/snapshot-source-alpha.txt",
+    )
+    source_beta = ExerciseSource.objects.create(
+        name="Snapshot source beta",
+        source_type=ExerciseSourceType.DOCUMENT,
+        location="docs/snapshot-source-beta.txt",
+    )
+    ExerciseCandidate.objects.create(
+        source=source_alpha,
+        raw_name="Alpha one",
+        normalized_name="alpha one",
+        confidence=0.82,
+        status=CurationStatus.NEEDS_REVIEW,
+    )
+    ExerciseCandidate.objects.create(
+        source=source_alpha,
+        raw_name="Alpha two",
+        normalized_name="alpha two",
+        confidence=0.88,
+        status=CurationStatus.NEEDS_REVIEW,
+    )
+    ExerciseCandidate.objects.create(
+        source=source_beta,
+        raw_name="Beta one",
+        normalized_name="beta one",
+        confidence=0.92,
+        status=CurationStatus.APPROVED,
+    )
+
+    client.force_login(reviewer)
+    response = client.get(reverse("workouts:exercises"))
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "Queue snapshot" in content
+    assert "3 candidates in current queue view." in content
+    assert "Needs review: 2" in content
+    assert "Approved: 1" in content
+    assert "Snapshot source alpha: 2" in content
+    assert "Snapshot source beta: 1" in content
 
 
 @pytest.mark.django_db

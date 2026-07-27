@@ -40,6 +40,7 @@ from .models import (
     ExerciseEquipmentRequirement,
     ExerciseMediaType,
     ExerciseMovementType,
+    SourceReference,
     WorkoutChallengeDay,
     WorkoutChallengeDayCompletion,
     WorkoutPlan,
@@ -198,6 +199,7 @@ class ExerciseListView(LoginRequiredMixin, ListView):
         status = self.request.GET.get("candidate_status", "all").strip().lower()
         confidence_band = self.request.GET.get("confidence_band", "all").strip().lower()
         publish_readiness = self.request.GET.get("publish_readiness", "all").strip().lower()
+        review_queue = self.request.GET.get("review_queue", "all").strip().lower()
 
         queryset = ExerciseCandidate.objects.select_related("source", "reviewed_by")
 
@@ -219,11 +221,23 @@ class ExerciseListView(LoginRequiredMixin, ListView):
         if publish_readiness not in {"all", "ready", "missing"}:
             publish_readiness = "all"
 
+        if review_queue == "low_confidence":
+            queryset = queryset.filter(
+                metadata__quality_checks__needs_low_confidence_review=True,
+            )
+        elif review_queue == "standard":
+            queryset = queryset.exclude(
+                metadata__quality_checks__needs_low_confidence_review=True,
+            )
+        else:
+            review_queue = "all"
+
         return (
             queryset.order_by("status", "-confidence", "normalized_name", "id"),
             status,
             confidence_band,
             publish_readiness,
+            review_queue,
         )
 
     def get_context_data(self, **kwargs):
@@ -233,6 +247,7 @@ class ExerciseListView(LoginRequiredMixin, ListView):
             selected_status,
             selected_confidence_band,
             selected_publish_readiness,
+            selected_review_queue,
         ) = self._get_filtered_candidates()
         candidates = list(candidates)
         for candidate in candidates:
@@ -253,6 +268,38 @@ class ExerciseListView(LoginRequiredMixin, ListView):
                 for candidate in candidates
                 if candidate.publish_requirements_missing
             ]
+
+        status_labels = dict(CurationStatus.choices)
+        queue_status_summary: dict[str, int] = {}
+        queue_source_summary: dict[str, int] = {}
+        for candidate in candidates:
+            queue_status_summary[candidate.status] = (
+                queue_status_summary.get(candidate.status, 0) + 1
+            )
+            source_name = candidate.source.name if candidate.source_id else "Unknown source"
+            queue_source_summary[source_name] = queue_source_summary.get(source_name, 0) + 1
+
+        queue_status_counts = [
+            {
+                "value": status_value,
+                "label": status_labels.get(status_value, status_value),
+                "count": count,
+            }
+            for status_value, count in sorted(
+                queue_status_summary.items(),
+                key=lambda item: (item[0], -item[1]),
+            )
+        ]
+        queue_source_counts = [
+            {
+                "name": source_name,
+                "count": count,
+            }
+            for source_name, count in sorted(
+                queue_source_summary.items(),
+                key=lambda item: (-item[1], item[0].lower()),
+            )
+        ]
 
         recent_decisions = ExerciseCandidateDecision.objects.select_related(
             "candidate",
@@ -303,6 +350,10 @@ class ExerciseListView(LoginRequiredMixin, ListView):
         context["selected_candidate_status"] = selected_status
         context["selected_confidence_band"] = selected_confidence_band
         context["selected_publish_readiness"] = selected_publish_readiness
+        context["selected_review_queue"] = selected_review_queue
+        context["queue_status_counts"] = queue_status_counts
+        context["queue_source_counts"] = queue_source_counts
+        context["queue_candidate_count"] = len(candidates)
         context["candidate_status_options"] = [
             {"value": "all", "label": "All statuses"},
             *[
@@ -320,6 +371,11 @@ class ExerciseListView(LoginRequiredMixin, ListView):
             {"value": "all", "label": "All candidates"},
             {"value": "ready", "label": "Publish ready"},
             {"value": "missing", "label": "Missing requirements"},
+        ]
+        context["review_queue_options"] = [
+            {"value": "all", "label": "All queue items"},
+            {"value": "low_confidence", "label": "Low-confidence queue"},
+            {"value": "standard", "label": "Standard queue"},
         ]
         return context
 
@@ -435,6 +491,8 @@ class ExerciseCandidateReviewActionView(LoginRequiredMixin, View):
                 "updated_at",
             ]
         )
+        if metadata_updates is not None:
+            _sync_candidate_source_reference(candidate)
         ExerciseCandidateDecision.objects.create(
             candidate=candidate,
             action=action,
@@ -2021,3 +2079,28 @@ def _get_publish_confirmation_audit(candidate: ExerciseCandidate) -> list[str]:
         entries.append(f"{label}: {confirmed_by} at {confirmed_at}")
 
     return entries
+
+
+def _sync_candidate_source_reference(candidate: ExerciseCandidate) -> None:
+    metadata = candidate.metadata if isinstance(candidate.metadata, dict) else {}
+    reference_url = str(metadata.get("source_url", "")).strip()
+    if not reference_url:
+        return
+
+    title = str(metadata.get("source_name", "")).strip()
+    attribution_text = str(metadata.get("attribution_text", "")).strip()
+
+    SourceReference.objects.update_or_create(
+        candidate=candidate,
+        reference_url=reference_url,
+        defaults={
+            "source": candidate.source,
+            "title": title,
+            "license_name": candidate.source.license_name,
+            "attribution_text": attribution_text,
+            "metadata": {
+                "captured_by": "review_action",
+                "captured_status": candidate.status,
+            },
+        },
+    )
